@@ -1,0 +1,8 @@
+{
+  "name": "NGPM 应用拓扑监控新增tab",
+  "description": "NGPM 下一代性能监控系统 - 应用拓扑四宫格监控及指标深度分析抽屉",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
