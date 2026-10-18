@@ -8,6 +8,7 @@ import {
   Settings2,
   Server,
   Layers,
+  Sparkles,
 } from 'lucide-react';
 import { CompareConfig } from './CompareConfigModal';
 
@@ -59,10 +60,10 @@ export const PeriodicCompareDrawer: React.FC<PeriodicCompareDrawerProps> = ({
   const [brushStartRatio, setBrushStartRatio] = useState<number | null>(null);
 
   useEffect(() => {
-    if (config.selectedNodes.length > 0 && !config.selectedNodes.includes(activeNode)) {
+    if (config.selectedNodes.length > 0) {
       setActiveNode(config.selectedNodes[0]);
     }
-  }, [config.selectedNodes, activeNode]);
+  }, [config]);
 
   if (!isOpen) return null;
 
@@ -214,6 +215,99 @@ export const PeriodicCompareDrawer: React.FC<PeriodicCompareDrawerProps> = ({
 
   const metricsToRender =
     displayMetrics.length > 0 ? displayMetrics : currentNodeData.metrics;
+
+  // Generate conclusion description for the 4 metrics (一段话统一描述)
+  const generateConclusionText = () => {
+    const traffic =
+      currentNodeData.metrics.find((m) => m.name === '流量') ||
+      currentNodeData.metrics[0];
+    const respTime =
+      currentNodeData.metrics.find((m) => m.name === '响应时间-服务器') ||
+      currentNodeData.metrics[1];
+    const delay =
+      currentNodeData.metrics.find((m) => m.name === '网络时延') ||
+      currentNodeData.metrics[2];
+    const failRate =
+      currentNodeData.metrics.find((m) => m.name === '建连失败率') ||
+      currentNodeData.metrics[3];
+
+    const formatDiffText = (m: typeof traffic) => {
+      if (m.trend === 'flat' || m.diffPercent === '0.00%') return '数据持平';
+      const action = m.trend === 'down' ? '下降' : '上升';
+      const cleanDiff = m.diff.replace(/^[+-]/, '');
+      return `${action}${cleanDiff}，变化率是 ${m.diffPercent}`;
+    };
+
+    return (
+      <span>
+        <span className="font-semibold text-gray-900">{activeNode}</span> 在对比时间（{config.compareTime}）内流量是{' '}
+        <span className="font-mono font-medium text-gray-900">
+          {traffic.compareValue} {traffic.compareUnit}
+        </span>
+        ，当前时间（{config.baseTime}）内流量是{' '}
+        <span className="font-mono font-medium text-gray-900">
+          {traffic.baseValue} {traffic.baseUnit}
+        </span>
+        ，相较对比时段{' '}
+        <span
+          className={`font-semibold ${
+            traffic.trend === 'down' ? 'text-[#52C41A]' : 'text-[#0084FF]'
+          }`}
+        >
+          {formatDiffText(traffic)}
+        </span>
+        ；响应时间-服务器在对比时间内是{' '}
+        <span className="font-mono font-medium text-gray-900">
+          {respTime.compareValue} {respTime.compareUnit}
+        </span>
+        ，当前时间是{' '}
+        <span className="font-mono font-medium text-gray-900">
+          {respTime.baseValue} {respTime.baseUnit}
+        </span>
+        ，相较对比时段{' '}
+        <span
+          className={`font-semibold ${
+            respTime.isGood ? 'text-[#52C41A]' : 'text-[#FF4D4F]'
+          }`}
+        >
+          {formatDiffText(respTime)}
+        </span>
+        ；网络时延在对比时间内是{' '}
+        <span className="font-mono font-medium text-gray-900">
+          {delay.compareValue} {delay.compareUnit}
+        </span>
+        ，当前时间是{' '}
+        <span className="font-mono font-medium text-gray-900">
+          {delay.baseValue} {delay.baseUnit}
+        </span>
+        ，相较对比时段{' '}
+        <span
+          className={`font-semibold ${
+            delay.isGood ? 'text-[#52C41A]' : 'text-[#FF4D4F]'
+          }`}
+        >
+          {formatDiffText(delay)}
+        </span>
+        ；建连失败率在对比时间内是{' '}
+        <span className="font-mono font-medium text-gray-900">
+          {failRate.compareValue} {failRate.compareUnit}
+        </span>
+        ，当前时间是{' '}
+        <span className="font-mono font-medium text-gray-900">
+          {failRate.baseValue} {failRate.baseUnit}
+        </span>
+        ，相较对比时段{' '}
+        <span
+          className={`font-semibold ${
+            failRate.isGood ? 'text-[#52C41A]' : 'text-[#FF4D4F]'
+          }`}
+        >
+          {formatDiffText(failRate)}
+        </span>
+        。
+      </span>
+    );
+  };
 
   // Helper for synchronized hover calculation
   const getHoverValues = (metricIdx: number) => {
@@ -422,6 +516,21 @@ export const PeriodicCompareDrawer: React.FC<PeriodicCompareDrawerProps> = ({
 
         {/* 3. Main Drawer Body */}
         <div className="flex-1 p-4 overflow-y-auto space-y-4">
+          {/* 对比分析结论 (放在最上方卡片上方，四指标统一一段话描述) */}
+          <div className="w-full bg-[#F4F9FF] border border-[#BAE0FF] rounded-lg p-3 text-xs leading-relaxed text-gray-700 shadow-2xs flex items-start gap-2.5">
+            <div className="w-5 h-5 rounded-full bg-[#0084FF] text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+              <Sparkles size={12} />
+            </div>
+            <div className="flex-1">
+              <div className="text-[11px] font-bold text-[#0084FF] mb-1 flex items-center gap-1.5">
+                <span>周期对比分析结论</span>
+              </div>
+              <div className="text-gray-700 leading-normal">
+                {generateConclusionText()}
+              </div>
+            </div>
+          </div>
+
           {/* Point 5: 第一行卡片平铺铺满 (Full-width tiled metric comparison cards) */}
           <div className="w-full">
             <div
@@ -785,89 +894,6 @@ export const PeriodicCompareDrawer: React.FC<PeriodicCompareDrawerProps> = ({
                   </div>
                 );
               })}
-            </div>
-          </div>
-
-          {/* Section 3: 详细数据对比表 */}
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-2xs">
-            <div className="px-4 py-2.5 bg-[#F9FAFC] border-b border-gray-200 flex items-center justify-between">
-              <span className="text-xs font-bold text-gray-800">
-                【{activeNode}】指标周期对比明细表
-              </span>
-              <span className="text-[10px] text-gray-400">
-                共比对 {metricsToRender.length} 项关键指标
-              </span>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-[#F4F6F9] text-gray-500 font-medium border-b border-gray-200">
-                  <tr>
-                    <th className="py-2 px-4">指标项</th>
-                    <th className="py-2 px-4 font-mono">基准值</th>
-                    <th className="py-2 px-4 font-mono">对比值</th>
-                    <th className="py-2 px-4 font-mono">变动绝对量</th>
-                    <th className="py-2 px-4 font-mono">波动比率</th>
-                    <th className="py-2 px-4">周期趋势评估</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 text-gray-700">
-                  {metricsToRender.map((m) => (
-                    <tr
-                      key={m.name}
-                      className="hover:bg-gray-50/80 transition-colors"
-                    >
-                      <td className="py-2.5 px-4 font-medium text-gray-900">
-                        {m.name}
-                      </td>
-                      <td className="py-2.5 px-4 font-mono text-gray-900 font-medium">
-                        {m.baseValue} {m.baseUnit}
-                      </td>
-                      <td className="py-2.5 px-4 font-mono text-gray-500">
-                        {m.compareValue} {m.compareUnit}
-                      </td>
-                      <td
-                        className={`py-2.5 px-4 font-mono font-medium ${
-                          m.trend === 'flat'
-                            ? 'text-gray-500'
-                            : m.isGood
-                            ? 'text-green-600'
-                            : 'text-red-500'
-                        }`}
-                      >
-                        {m.diff}
-                      </td>
-                      <td
-                        className={`py-2.5 px-4 font-mono font-bold ${
-                          m.trend === 'flat'
-                            ? 'text-gray-500'
-                            : m.isGood
-                            ? 'text-green-600'
-                            : 'text-red-500'
-                        }`}
-                      >
-                        {m.diffPercent}
-                      </td>
-                      <td className="py-2.5 px-4">
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-medium ${
-                            m.trend === 'flat'
-                              ? 'bg-gray-100 text-gray-600'
-                              : m.isGood
-                              ? 'bg-green-50 text-green-700 border border-green-200'
-                              : 'bg-red-50 text-red-600 border border-red-200'
-                          }`}
-                        >
-                          {m.trend === 'flat'
-                            ? '数据持平'
-                            : m.isGood
-                            ? '性能改善'
-                            : '异常偏高'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           </div>
         </div>

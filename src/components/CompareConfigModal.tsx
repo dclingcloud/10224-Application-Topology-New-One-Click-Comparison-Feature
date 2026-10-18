@@ -21,12 +21,16 @@ interface CompareConfigModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: (config: CompareConfig) => void;
+  initialNodes?: string[];
+  title?: string;
 }
 
 export const CompareConfigModal: React.FC<CompareConfigModalProps> = ({
   isOpen,
   onClose,
   onConfirm,
+  initialNodes,
+  title,
 }) => {
   // Base period (current topology window)
   const baseTimeStr = '2026-10-15 10:12 ~ 2026-10-15 10:27';
@@ -55,6 +59,12 @@ export const CompareConfigModal: React.FC<CompareConfigModalProps> = ({
     '交换机1',
   ]);
   const [isNodePickerOpen, setIsNodePickerOpen] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && initialNodes && initialNodes.length > 0) {
+      setSelectedNodes(initialNodes);
+    }
+  }, [isOpen, initialNodes]);
 
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -242,7 +252,7 @@ export const CompareConfigModal: React.FC<CompareConfigModalProps> = ({
         {/* Header */}
         <div className="h-11 px-5 border-b border-gray-200 flex items-center justify-between bg-[#FBFBFD] rounded-t-lg">
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-gray-800">一键对比配置</h3>
+            <h3 className="text-sm font-semibold text-gray-800">{title || '一键对比配置'}</h3>
           </div>
           <button
             type="button"

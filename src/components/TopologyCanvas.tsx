@@ -17,7 +17,7 @@ import { ContextMenu } from './ContextMenu';
 
 interface TopologyCanvasProps {
   onOpenMetricAnalysis: (nodeName: string) => void;
-  onOpenCompare?: () => void;
+  onOpenCompare?: (nodeName?: string) => void;
 }
 
 export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
@@ -116,7 +116,7 @@ export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
           {/* 一键对比按钮 (放在指标说明左侧) */}
           <button
             type="button"
-            onClick={onOpenCompare}
+            onClick={() => onOpenCompare?.()}
             className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-[#BAE0FF] rounded text-[#0084FF] hover:bg-[#E6F4FF]/50 transition-colors shadow-2xs cursor-pointer text-xs font-medium"
           >
             <ArrowLeftRight size={13} className="text-[#0084FF]" />
@@ -180,6 +180,11 @@ export const TopologyCanvas: React.FC<TopologyCanvasProps> = ({
               const nodeName = activeMenu.nodeName;
               setActiveMenu(null);
               onOpenMetricAnalysis(nodeName);
+            }}
+            onSelectPeriodicCompare={() => {
+              const nodeName = activeMenu.nodeName;
+              setActiveMenu(null);
+              onOpenCompare?.(nodeName);
             }}
             onClose={() => setActiveMenu(null)}
           />

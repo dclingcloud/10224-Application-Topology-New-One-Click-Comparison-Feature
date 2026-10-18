@@ -3,12 +3,14 @@ import React, { useEffect, useRef } from 'react';
 interface ContextMenuProps {
   position: { x: number; y: number };
   onSelectMetricAnalysis: () => void;
+  onSelectPeriodicCompare: () => void;
   onClose: () => void;
 }
 
 export const ContextMenu: React.FC<ContextMenuProps> = ({
   position,
   onSelectMetricAnalysis,
+  onSelectPeriodicCompare,
   onClose,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -25,6 +27,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
   const menuItems = [
     { label: '指标分析', action: onSelectMetricAnalysis, isPrimary: true },
+    { label: '周期对比', action: onSelectPeriodicCompare },
     { label: '下钻智溯', action: () => onClose() },
     { label: '应用分析', action: () => onClose() },
     { label: '告警分析', action: () => onClose() },

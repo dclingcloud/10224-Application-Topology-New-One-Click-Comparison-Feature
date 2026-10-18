@@ -24,6 +24,11 @@ export default function App() {
   // Compare feature states
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
   const [isCompareDrawerOpen, setIsCompareDrawerOpen] = useState(false);
+  const [compareModalTitle, setCompareModalTitle] = useState('一键对比配置');
+  const [compareInitialNodes, setCompareInitialNodes] = useState<string[]>([
+    '交换机',
+    '交换机1',
+  ]);
   const [compareConfig, setCompareConfig] = useState<CompareConfig>({
     baseTime: '2026-10-15 10:12 ~ 2026-10-15 10:27',
     comparePeriodType: 'yesterday',
@@ -47,7 +52,14 @@ export default function App() {
     setIsDrawerOpen(false);
   };
 
-  const handleOpenCompare = () => {
+  const handleOpenCompare = (nodeName?: string) => {
+    if (nodeName) {
+      setCompareInitialNodes([nodeName]);
+      setCompareModalTitle('周期对比配置');
+    } else {
+      setCompareInitialNodes(['交换机', '交换机1']);
+      setCompareModalTitle('一键对比配置');
+    }
     setIsCompareModalOpen(true);
   };
 
@@ -58,6 +70,7 @@ export default function App() {
   };
 
   const handleReconfigureCompare = () => {
+    setCompareInitialNodes(compareConfig.selectedNodes);
     setIsCompareModalOpen(true);
   };
 
@@ -144,11 +157,13 @@ export default function App() {
         selectedNodeName={selectedNodeName}
       />
 
-      {/* 5. One-click Compare Configuration Modal (一键对比配置弹窗) */}
+      {/* 5. One-click / Periodic Compare Configuration Modal (对比配置弹窗) */}
       <CompareConfigModal
         isOpen={isCompareModalOpen}
         onClose={() => setIsCompareModalOpen(false)}
         onConfirm={handleConfirmCompare}
+        initialNodes={compareInitialNodes}
+        title={compareModalTitle}
       />
 
       {/* 6. Periodic Comparison Drawer (周期对比抽屉式弹窗) */}
