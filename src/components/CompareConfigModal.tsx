@@ -33,15 +33,15 @@ export const CompareConfigModal: React.FC<CompareConfigModalProps> = ({
   title,
 }) => {
   // Base period (current topology window)
-  const baseTimeStr = '2026-10-15 10:12 ~ 2026-10-15 10:27';
+  const baseTimeStr = '2026-10-25 19:39 ~ 2026-10-25 20:39';
 
   // State 1: Comparison Time (default: yesterday at same time)
-  const [compareTime, setCompareTime] = useState('2026-10-14 10:12 ~ 2026-10-14 10:27');
+  const [compareTime, setCompareTime] = useState('2026-10-24 19:39 ~ 2026-10-24 20:39');
   const [isTimePickerOpen, setIsTimePickerOpen] = useState(false);
-  const [fromDate, setFromDate] = useState('2026-10-14');
-  const [fromTime, setFromTime] = useState('10:12');
-  const [toDate, setToDate] = useState('2026-10-14');
-  const [toTime, setToTime] = useState('10:27');
+  const [fromDate, setFromDate] = useState('2026-10-24');
+  const [fromTime, setFromTime] = useState('19:39');
+  const [toDate, setToDate] = useState('2026-10-24');
+  const [toTime, setToTime] = useState('20:39');
 
   // State 2: Selected Metrics (defaults to 4-quadrant metrics as required)
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>([
@@ -72,8 +72,9 @@ export const CompareConfigModal: React.FC<CompareConfigModalProps> = ({
 
   // Available nodes
   const availableNodes = [
-    { id: '交换机', label: '交换机 (核心汇聚)' },
     { id: '交换机1', label: '交换机1 (接入交换机)' },
+    { id: '交换机2', label: '交换机2 (生产汇聚交换机)' },
+    { id: '交换机', label: '交换机 (核心汇聚)' },
     { id: 'Internet Egress to Bu...', label: 'Internet Egress to Bu...' },
     { id: 'Production Core Zone', label: 'Production Core Zone' },
   ];
@@ -693,8 +694,8 @@ export const CompareConfigModal: React.FC<CompareConfigModalProps> = ({
             onClick={handleConfirmCompare}
             className="px-5 py-1.5 text-xs font-medium text-white bg-[#0084FF] hover:bg-[#0073E6] rounded shadow-xs cursor-pointer transition-colors flex items-center gap-1.5"
           >
-            <Calendar size={13} />
-            <span>开始对比</span>
+            <Check size={13} />
+            <span>确定</span>
           </button>
         </div>
       </div>

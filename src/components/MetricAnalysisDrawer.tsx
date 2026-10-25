@@ -13,7 +13,6 @@ import {
   NetworkLoadChart,
   AppAvailabilityChart,
   RequestResponseTimeChart,
-  FailureRateChart,
 } from './MetricCharts';
 import {
   SpeedTrendChart,
@@ -37,7 +36,7 @@ interface MetricAnalysisDrawerProps {
   selectedNodeName?: string;
 }
 
-type TabType = 'load' | 'performance' | 'tcp';
+type TabType = 'performance' | 'load' | 'tcp';
 
 export const MetricAnalysisDrawer: React.FC<MetricAnalysisDrawerProps> = ({
   isOpen,
@@ -50,8 +49,8 @@ export const MetricAnalysisDrawer: React.FC<MetricAnalysisDrawerProps> = ({
   if (!isOpen) return null;
 
   const tabs: { key: TabType; label: string; count?: number }[] = [
-    { key: 'load', label: '负载量' },
     { key: 'performance', label: '性能' },
+    { key: 'load', label: '负载量' },
     { key: 'tcp', label: 'TCP指标' },
   ];
 
@@ -175,17 +174,7 @@ export const MetricAnalysisDrawer: React.FC<MetricAnalysisDrawerProps> = ({
 
         {/* 4. Tab Content Body */}
         <div className="flex-1 p-3.5 overflow-y-auto">
-          {/* Tab 1: 负载量 (图1中的4个趋势图) */}
-          {activeTab === 'load' && (
-            <div className="grid grid-cols-2 gap-3.5">
-              <SpeedTrendChart />
-              <RealtimeTrafficChart />
-              <SessionCountChart />
-              <PacketTrafficContrastChart />
-            </div>
-          )}
-
-          {/* Tab 2: 性能 (现有4个指标分析图 + 图2中的2个新图) */}
+          {/* Tab 1: 性能 (网络延时、网络性能、网络负载、应用可用性、请求及响应传输时间) */}
           {activeTab === 'performance' && (
             <div className="grid grid-cols-2 gap-3.5">
               <NetworkDelayChart />
@@ -193,7 +182,16 @@ export const MetricAnalysisDrawer: React.FC<MetricAnalysisDrawerProps> = ({
               <NetworkLoadChart />
               <AppAvailabilityChart />
               <RequestResponseTimeChart />
-              <FailureRateChart />
+            </div>
+          )}
+
+          {/* Tab 2: 负载量 (图1中的4个趋势图) */}
+          {activeTab === 'load' && (
+            <div className="grid grid-cols-2 gap-3.5">
+              <SpeedTrendChart />
+              <RealtimeTrafficChart />
+              <SessionCountChart />
+              <PacketTrafficContrastChart />
             </div>
           )}
 

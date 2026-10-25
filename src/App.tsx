@@ -9,6 +9,7 @@ import { MetricAnalysisDrawer } from './components/MetricAnalysisDrawer';
 import { CompareConfigModal, CompareConfig } from './components/CompareConfigModal';
 import { PeriodicCompareDrawer, DrillDownParams } from './components/PeriodicCompareDrawer';
 import { SmartTraceView } from './components/SmartTraceView';
+import { WorkbenchCompareView } from './components/WorkbenchCompareView';
 
 export default function App() {
   // Top navigation tabs
@@ -26,15 +27,14 @@ export default function App() {
   const [isCompareDrawerOpen, setIsCompareDrawerOpen] = useState(false);
   const [compareModalTitle, setCompareModalTitle] = useState('一键对比配置');
   const [compareInitialNodes, setCompareInitialNodes] = useState<string[]>([
-    '交换机',
     '交换机1',
   ]);
   const [compareConfig, setCompareConfig] = useState<CompareConfig>({
-    baseTime: '2026-10-15 10:12 ~ 2026-10-15 10:27',
+    baseTime: '2026-10-25 19:39 ~ 2026-10-25 20:39',
     comparePeriodType: 'yesterday',
-    compareTime: '2026-10-14 10:12 ~ 2026-10-14 10:27',
+    compareTime: '2026-10-24 19:39 ~ 2026-10-24 20:39',
     selectedMetrics: ['流量', '响应时间-服务器', '网络时延', '建连失败率'],
-    selectedNodes: ['交换机', '交换机1'],
+    selectedNodes: ['交换机1'],
   });
 
   // Drill-down parameters for SmartTrace (智溯)
@@ -57,7 +57,7 @@ export default function App() {
       setCompareInitialNodes([nodeName]);
       setCompareModalTitle('周期对比配置');
     } else {
-      setCompareInitialNodes(['交换机', '交换机1']);
+      setCompareInitialNodes(['交换机1', '交换机2']);
       setCompareModalTitle('一键对比配置');
     }
     setIsCompareModalOpen(true);
@@ -66,7 +66,24 @@ export default function App() {
   const handleConfirmCompare = (config: CompareConfig) => {
     setCompareConfig(config);
     setIsCompareModalOpen(false);
-    setIsCompareDrawerOpen(true);
+    setIsCompareDrawerOpen(false);
+
+    // 规则：
+    // 点击周期对比，只要是节点选择为1个的时候，展示图2内容（工作台单节点周期对比样式）
+    // 如果是多个节点，展示图1内容（工作台多对象对比样式）
+    const workbenchTabExists = topTabs.some((t) => t.id === 'workbench');
+    if (!workbenchTabExists) {
+      setTopTabs((prev) => {
+        const hasTrace = prev.some((t) => t.id === 'trace');
+        const next = [...prev];
+        if (!hasTrace) {
+          next.push({ id: 'trace', label: '流量分析', isCloseable: true });
+        }
+        next.push({ id: 'workbench', label: '工作台', isCloseable: true });
+        return next;
+      });
+    }
+    setActiveTopTabId('workbench');
   };
 
   const handleReconfigureCompare = () => {
@@ -100,6 +117,8 @@ export default function App() {
   const currentTimeRange =
     activeTopTabId === 'trace'
       ? drillDownParams.timeRange
+      : activeTopTabId === 'workbench'
+      ? compareConfig.baseTime || '2026-10-25 19:39 ~ 2026-10-25 20:39'
       : '2026-10-15 09:29  ~  2026-10-15 10:29';
 
   return (
@@ -119,7 +138,13 @@ export default function App() {
       {/* 3. Main Workspace Area */}
       <div className="flex-1 flex overflow-hidden">
         {/* Leftmost Dark Icon Bar */}
-        <IconSidebar />
+        <IconSidebar
+          activeId={activeTopTabId}
+          onSelectNav={(id) => {
+            if (id === 'topology') setActiveTopTabId('topology');
+            else if (id === 'trace') setActiveTopTabId('trace');
+          }}
+        />
 
         {/* View 1: Application Topology Main View */}
         {activeTopTabId === 'topology' && (
@@ -146,6 +171,18 @@ export default function App() {
           <SmartTraceView
             timeRange={drillDownParams.timeRange}
             nodeName={drillDownParams.nodeName}
+          />
+        )}
+
+        {/* View 3: Workbench Periodic Compare View (工作台 - 多对象/周期对比页面, Image 1) */}
+        {activeTopTabId === 'workbench' && (
+          <WorkbenchCompareView
+            nodes={compareConfig.selectedNodes}
+            nodeName={compareConfig.selectedNodes[0] || '交换机1'}
+            baseTime={compareConfig.baseTime}
+            compareTime={compareConfig.compareTime}
+            selectedMetrics={compareConfig.selectedMetrics}
+            initialMode={compareConfig.selectedNodes.length > 1 ? 'multi' : 'single'}
           />
         )}
       </div>
