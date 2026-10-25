@@ -17,6 +17,7 @@ import {
   Maximize2,
   MoreHorizontal,
   ChevronLeft,
+  Sparkles,
 } from 'lucide-react';
 
 export interface WorkbenchCompareProps {
@@ -479,6 +480,40 @@ export const WorkbenchCompareView: React.FC<WorkbenchCompareProps> = ({
           {/* ======================================================== */}
           {viewMode === 'multi' ? (
             <div className="space-y-3.5">
+              {/* 对比分析结论 (参考原有设计样式，加载在图表上方) */}
+              <div className="w-full bg-[#F4F9FF] border border-[#BAE0FF] rounded-lg p-3 text-xs leading-relaxed text-gray-700 shadow-2xs flex items-start gap-2.5">
+                <div className="w-5 h-5 rounded-full bg-[#0084FF] text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                  <Sparkles size={12} />
+                </div>
+                <div className="flex-1">
+                  <div className="text-[11px] font-bold text-[#0084FF] mb-1 flex items-center gap-1.5">
+                    <span>周期对比分析结论</span>
+                  </div>
+                  <div className="text-gray-700 leading-normal space-y-1">
+                    <div>
+                      <span className="font-semibold text-gray-900">{displayNodes[0] || '交换机1'}</span>{' '}
+                      在对比时间（{compareTime}）内流量是{' '}
+                      <span className="font-mono font-medium text-gray-900">14.20 KB</span>，当前时间（{baseTime}）内流量是{' '}
+                      <span className="font-mono font-medium text-gray-900">19.63 KB</span>，相较对比时段{' '}
+                      <span className="font-semibold text-[#0084FF]">上升5.43 KB，变化率是 +38.24%</span>；平均包率在对比时间内是{' '}
+                      <span className="font-mono font-medium text-gray-900">1.20 pps</span>，当前时间是{' '}
+                      <span className="font-mono font-medium text-gray-900">1.85 pps</span>，相较对比时段{' '}
+                      <span className="font-semibold text-[#0084FF]">上升0.65 pps，变化率是 +54.17%</span>。
+                    </div>
+                    <div>
+                      <span className="font-semibold text-gray-900">{displayNodes[1] || '交换机2'}</span>{' '}
+                      在对比时间（{compareTime}）内流量是{' '}
+                      <span className="font-mono font-medium text-gray-900">108.40 MB</span>，当前时间（{baseTime}）内流量是{' '}
+                      <span className="font-mono font-medium text-gray-900">125.81 MB</span>，相较对比时段{' '}
+                      <span className="font-semibold text-[#0084FF]">上升17.41 MB，变化率是 +16.06%</span>；速率在对比时间内是{' '}
+                      <span className="font-mono font-medium text-gray-900">145.20 Kbps</span>，当前时间是{' '}
+                      <span className="font-mono font-medium text-gray-900">168.50 Kbps</span>，相较对比时段{' '}
+                      <span className="font-semibold text-[#0084FF]">上升23.30 Kbps，变化率是 +16.05%</span>。
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Row 1: Node 1 (交换机1-基准 & 交换机1-周期) */}
               <div className="grid grid-cols-2 gap-3.5">
                 {/* Row 1 Left: 交换机1-基准 */}
@@ -1289,6 +1324,34 @@ export const WorkbenchCompareView: React.FC<WorkbenchCompareProps> = ({
             /* MODE 2: SINGLE NODE PERIODIC COMPARE (图2单节点上下两图样式) */
             /* ======================================================== */
             <div className="space-y-3.5">
+              {/* 对比分析结论 (参考原有设计样式，加载在图表上方) */}
+              <div className="w-full bg-[#F4F9FF] border border-[#BAE0FF] rounded-lg p-3 text-xs leading-relaxed text-gray-700 shadow-2xs flex items-start gap-2.5">
+                <div className="w-5 h-5 rounded-full bg-[#0084FF] text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                  <Sparkles size={12} />
+                </div>
+                <div className="flex-1">
+                  <div className="text-[11px] font-bold text-[#0084FF] mb-1 flex items-center gap-1.5">
+                    <span>周期对比分析结论</span>
+                  </div>
+                  <div className="text-gray-700 leading-normal">
+                    <span className="font-semibold text-gray-900">{nodeName || '交换机1'}</span>{' '}
+                    在对比时间（{compareTime}）内流量是{' '}
+                    <span className="font-mono font-medium text-gray-900">14.20 KB</span>，当前时间（{baseTime}）内流量是{' '}
+                    <span className="font-mono font-medium text-gray-900">19.63 KB</span>，相较对比时段{' '}
+                    <span className="font-semibold text-[#0084FF]">上升5.43 KB，变化率是 +38.24%</span>；响应时间-服务器在对比时间内是{' '}
+                    <span className="font-mono font-medium text-gray-900">28.10 ms</span>，当前时间是{' '}
+                    <span className="font-mono font-medium text-gray-900">25.84 ms</span>，相较对比时段{' '}
+                    <span className="font-semibold text-[#52C41A]">下降2.26 ms，变化率是 -8.04%</span>；网络时延在对比时间内是{' '}
+                    <span className="font-mono font-medium text-gray-900">115.30 ms</span>，当前时间是{' '}
+                    <span className="font-mono font-medium text-gray-900">121.10 ms</span>，相较对比时段{' '}
+                    <span className="font-semibold text-[#FF4D4F]">上升5.80 ms，变化率是 +5.03%</span>；建连失败率在对比时间内是{' '}
+                    <span className="font-mono font-medium text-gray-900">52.40 %</span>，当前时间是{' '}
+                    <span className="font-mono font-medium text-gray-900">48.13 %</span>，相较对比时段{' '}
+                    <span className="font-semibold text-[#52C41A]">下降4.27 %，变化率是 -8.15%</span>。
+                  </div>
+                </div>
+              </div>
+
               {/* Card 1: 交换机1-基准 */}
               <div className="bg-white border border-gray-200 rounded-md p-3.5 shadow-2xs flex flex-col">
                 {/* Header Row */}
