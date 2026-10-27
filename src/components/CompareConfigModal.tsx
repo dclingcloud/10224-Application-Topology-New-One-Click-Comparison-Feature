@@ -14,6 +14,7 @@ export interface CompareConfig {
   comparePeriodType?: string;
   compareTime: string;
   selectedMetrics: string[];
+  selectedMetric?: string;
   selectedNodes: string[];
 }
 
@@ -22,6 +23,7 @@ interface CompareConfigModalProps {
   onClose: () => void;
   onConfirm: (config: CompareConfig) => void;
   initialNodes?: string[];
+  initialMetric?: string;
   title?: string;
 }
 
@@ -30,6 +32,7 @@ export const CompareConfigModal: React.FC<CompareConfigModalProps> = ({
   onClose,
   onConfirm,
   initialNodes,
+  initialMetric,
   title,
 }) => {
   // Base period (current topology window)
@@ -43,13 +46,8 @@ export const CompareConfigModal: React.FC<CompareConfigModalProps> = ({
   const [toDate, setToDate] = useState('2026-10-24');
   const [toTime, setToTime] = useState('20:39');
 
-  // State 2: Selected Metrics (defaults to 4-quadrant metrics as required)
-  const [selectedMetrics, setSelectedMetrics] = useState<string[]>([
-    '流量',
-    '响应时间-服务器',
-    '网络时延',
-    '建连失败率',
-  ]);
+  // State 2: Selected Metric (Single-choice, defaults to the first metric of the 4-quadrant metrics: '流量')
+  const [selectedMetric, setSelectedMetric] = useState<string>('流量');
   const [isKpiPickerOpen, setIsKpiPickerOpen] = useState(false);
   const [kpiSearchText, setKpiSearchText] = useState('');
 
@@ -61,10 +59,15 @@ export const CompareConfigModal: React.FC<CompareConfigModalProps> = ({
   const [isNodePickerOpen, setIsNodePickerOpen] = useState(false);
 
   useEffect(() => {
-    if (isOpen && initialNodes && initialNodes.length > 0) {
-      setSelectedNodes(initialNodes);
+    if (isOpen) {
+      if (initialNodes && initialNodes.length > 0) {
+        setSelectedNodes(initialNodes);
+      }
+      if (initialMetric) {
+        setSelectedMetric(initialMetric);
+      }
     }
-  }, [isOpen, initialNodes]);
+  }, [isOpen, initialNodes, initialMetric]);
 
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -177,17 +180,6 @@ export const CompareConfigModal: React.FC<CompareConfigModalProps> = ({
     '09-17 13:48 - 09-17 14:03',
   ];
 
-  const toggleMetric = (metric: string) => {
-    setSelectedMetrics((prev) =>
-      prev.includes(metric) ? prev.filter((m) => m !== metric) : [...prev, metric]
-    );
-  };
-
-  const removeMetric = (metric: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setSelectedMetrics((prev) => prev.filter((m) => m !== metric));
-  };
-
   const toggleNode = (nodeId: string) => {
     setSelectedNodes((prev) =>
       prev.includes(nodeId)
@@ -232,7 +224,8 @@ export const CompareConfigModal: React.FC<CompareConfigModalProps> = ({
     onConfirm({
       baseTime: baseTimeStr,
       compareTime,
-      selectedMetrics,
+      selectedMetrics: [selectedMetric],
+      selectedMetric,
       selectedNodes,
     });
   };
@@ -429,12 +422,15 @@ export const CompareConfigModal: React.FC<CompareConfigModalProps> = ({
             )}
           </div>
 
-          {/* 3. 指标选择 (图3样式多选下拉框) */}
+          {/* 3. 指标选择 (单选指标，默认四宫格首项: 流量) */}
           <div className="space-y-1.5 relative">
             <label className="font-semibold text-gray-700 text-xs flex items-center justify-between">
-              <span>指标选择 (KPI)</span>
-              <span className="text-[10px] text-[#0084FF]">
-                已选 {selectedMetrics.length} 项 (默认已带入四宫格指标)
+              <span className="flex items-center gap-1.5">
+                <span>指标选择 (KPI)</span>
+                <span className="text-[11px] font-normal text-gray-400">单选指标</span>
+              </span>
+              <span className="text-[10px] text-[#0084FF] font-medium">
+                默认：四宫格指标首项（{selectedMetric}）
               </span>
             </label>
 
@@ -445,37 +441,29 @@ export const CompareConfigModal: React.FC<CompareConfigModalProps> = ({
                 setIsTimePickerOpen(false);
                 setIsNodePickerOpen(false);
               }}
-              className="min-h-8 p-1 rounded border border-gray-300 hover:border-[#0084FF] bg-white flex items-center justify-between cursor-pointer flex-wrap gap-1 transition-colors"
+              className="h-8 px-2.5 rounded border border-gray-300 hover:border-[#0084FF] bg-white flex items-center justify-between cursor-pointer transition-colors shadow-2xs"
             >
-              <div className="flex items-center flex-wrap gap-1.5 flex-1">
-                {selectedMetrics.map((metric) => (
-                  <span
-                    key={metric}
-                    className="flex items-center gap-1 px-2 py-0.5 rounded bg-[#E6F4FF] border border-[#BAE0FF] text-[#0084FF] text-xs font-medium"
-                  >
-                    <span>{metric}</span>
-                    <button
-                      type="button"
-                      onClick={(e) => removeMetric(metric, e)}
-                      className="hover:text-red-500 cursor-pointer"
-                    >
-                      <X size={11} />
-                    </button>
-                  </span>
-                ))}
+              <div className="flex items-center gap-2 overflow-hidden">
+                <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-[#E6F4FF] border border-[#BAE0FF] text-[#0084FF] text-xs font-semibold shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#0084FF]" />
+                  <span>{selectedMetric}</span>
+                </span>
+                <span className="text-[11px] text-gray-400 truncate">
+                  点击切换单选指标
+                </span>
               </div>
               <ChevronDown size={14} className="text-gray-400 mr-1 shrink-0" />
             </div>
 
-            {/* KPI Picker Dropdown Panel (Matching Figure 3 style) */}
+            {/* KPI Picker Dropdown Panel (Single-choice Radio list) */}
             {isKpiPickerOpen && (
               <div className="absolute left-0 top-15 z-50 w-full bg-white rounded-md border border-gray-200 shadow-2xl p-4 flex flex-col space-y-3 animate-in fade-in duration-100 max-h-[380px] overflow-hidden">
-                {/* Top: 搜索框 + 已选择KPI标签 */}
+                {/* Top: 搜索框 + 当前选中KPI标签 */}
                 <div className="flex items-center gap-3 pb-3 border-b border-gray-200">
                   <div className="relative w-48 shrink-0">
                     <input
                       type="text"
-                      placeholder="搜索"
+                      placeholder="搜索指标..."
                       value={kpiSearchText}
                       onChange={(e) => setKpiSearchText(e.target.value)}
                       className="w-full h-7 pl-6 pr-2 text-xs border border-gray-300 rounded focus:outline-none focus:border-[#0084FF]"
@@ -486,29 +474,21 @@ export const CompareConfigModal: React.FC<CompareConfigModalProps> = ({
                     />
                   </div>
 
-                  <div className="flex items-center gap-1.5 flex-1 overflow-x-auto text-xs py-0.5">
+                  <div className="flex items-center gap-2 flex-1 text-xs py-0.5">
                     <span className="text-gray-500 shrink-0 text-xs">
-                      已选择KPI:
+                      当前选中指标:
                     </span>
-                    {selectedMetrics.map((metric) => (
-                      <span
-                        key={metric}
-                        className="flex items-center gap-1 px-2 py-0.5 rounded bg-[#E6F4FF] border border-[#BAE0FF] text-[#0084FF] text-xs shrink-0 font-medium"
-                      >
-                        <span>{metric}</span>
-                        <button
-                          type="button"
-                          onClick={(e) => removeMetric(metric, e)}
-                          className="hover:text-red-500 cursor-pointer"
-                        >
-                          <X size={11} />
-                        </button>
-                      </span>
-                    ))}
+                    <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-[#E6F4FF] border border-[#BAE0FF] text-[#0084FF] text-xs font-semibold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#0084FF]" />
+                      <span>{selectedMetric}</span>
+                    </span>
+                    <span className="text-[11px] text-gray-400 ml-1">
+                      (单选)
+                    </span>
                   </div>
                 </div>
 
-                {/* Checkbox Grid by Categories */}
+                {/* Radio Grid by Categories */}
                 <div className="overflow-y-auto max-h-56 pr-1 space-y-4">
                   {kpiCategories.map((cat) => {
                     const filteredItems = cat.items.filter((item) =>
@@ -524,29 +504,28 @@ export const CompareConfigModal: React.FC<CompareConfigModalProps> = ({
                           <span>{cat.name}</span>
                         </div>
 
-                        {/* Grid */}
-                        <div className="grid grid-cols-4 gap-x-2 gap-y-2 text-xs">
+                        {/* Grid of Radio Buttons */}
+                        <div className="grid grid-cols-4 gap-x-2 gap-y-1.5 text-xs">
                           {filteredItems.map((item) => {
-                            const isChecked = selectedMetrics.includes(item);
+                            const isSelected = selectedMetric === item;
                             return (
                               <label
                                 key={item}
-                                onClick={() => toggleMetric(item)}
-                                className="flex items-center gap-1.5 cursor-pointer text-gray-700 hover:text-gray-900 select-none truncate"
+                                onClick={() => setSelectedMetric(item)}
+                                className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors border select-none ${
+                                  isSelected
+                                    ? 'bg-[#E6F4FF] text-[#0084FF] font-medium border-[#BAE0FF]'
+                                    : 'text-gray-700 hover:bg-gray-50 border-transparent'
+                                }`}
                               >
                                 <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={() => {}}
-                                  className="w-3.5 h-3.5 text-[#0084FF] rounded border-gray-300 focus:ring-0 cursor-pointer"
+                                  type="radio"
+                                  name="kpiMetricRadio"
+                                  checked={isSelected}
+                                  onChange={() => setSelectedMetric(item)}
+                                  className="w-3.5 h-3.5 text-[#0084FF] border-gray-300 focus:ring-0 cursor-pointer accent-[#0084FF]"
                                 />
-                                <span
-                                  className={`truncate text-xs ${
-                                    isChecked
-                                      ? 'text-[#0084FF] font-medium'
-                                      : 'text-gray-700'
-                                  }`}
-                                >
+                                <span className="truncate text-xs">
                                   {item}
                                 </span>
                               </label>

@@ -3,6 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function() {
+        try {
+          var _f = window.fetch;
+          Object.defineProperty(window, 'fetch', {
+            get: function() { return _f; },
+            set: function(v) { _f = v; },
+            configurable: true,
+            enumerable: true
+          });
+        } catch (e) {}
+      })();
+    </script>
     <title>NGPM 应用拓扑监控</title>
     <meta name="description" content="NGPM 下一代性能监控系统 - 应用拓扑四宫格监控及指标深度分析抽屉" />
     <meta property="og:title" content="NGPM 应用拓扑监控" />

@@ -29,19 +29,541 @@ export interface WorkbenchCompareProps {
   initialMode?: 'multi' | 'single';
 }
 
+interface CardCurveData {
+  curTime: string;
+  cmpTime: string;
+  greenVal: string;
+  cyanVal: string;
+  greenY: number;
+  cyanY: number;
+}
+
+// Helper to compute curve values and Y positions for a given variant and hover ratio
+function computeCurveData(
+  ratio: number,
+  variant: 'switch' | 'switch1'
+): CardCurveData {
+  const totalMinutes = 60;
+  const minuteOffset = Math.round(ratio * totalMinutes);
+  const startHour = 9;
+  const startMin = 25;
+  const curTotalMins = startHour * 60 + startMin + minuteOffset;
+  const curH = Math.floor(curTotalMins / 60).toString().padStart(2, '0');
+  const curM = (curTotalMins % 60).toString().padStart(2, '0');
+
+  const cmpTotalMins = (startHour - 1) * 60 + startMin + minuteOffset;
+  const cmpH = Math.floor(cmpTotalMins / 60).toString().padStart(2, '0');
+  const cmpM = (cmpTotalMins % 60).toString().padStart(2, '0');
+
+  if (variant === 'switch') {
+    let greenVal = 187.45;
+    let cyanVal = 1.06;
+    let greenY = 122;
+    let cyanY = 175;
+
+    if (Math.abs(ratio - 0.472) < 0.02) {
+      greenVal = 187.45;
+      cyanVal = 1.06;
+      greenY = 122;
+      cyanY = 175;
+    } else {
+      const x = ratio * 1000;
+      let gHeight = 0;
+      gHeight += Math.exp(-Math.pow((x - 275) / 22, 2)) * 600;
+      gHeight += Math.exp(-Math.pow((x - 430) / 28, 2)) * 520;
+      gHeight += Math.exp(-Math.pow((x - 472) / 24, 2)) * 187;
+      gHeight += Math.exp(-Math.pow((x - 865) / 30, 2)) * 420;
+      gHeight += Math.exp(-Math.pow((x - 600) / 22, 2)) * 200;
+      gHeight += Math.exp(-Math.pow((x - 645) / 22, 2)) * 200;
+      gHeight += Math.exp(-Math.pow((x - 735) / 22, 2)) * 190;
+      gHeight += Math.exp(-Math.pow((x - 945) / 20, 2)) * 120;
+      if (x < 100) gHeight += (1 - x / 100) * 390;
+
+      greenVal = Math.max(0, Math.round(gHeight * 100) / 100);
+      greenY = Math.max(25, 175 - (greenVal / 650) * 150);
+
+      let cHeight = 0;
+      cHeight += Math.exp(-Math.pow((x - 98) / 14, 2)) * 220;
+      cHeight += Math.exp(-Math.pow((x - 198) / 16, 2)) * 370;
+      cHeight += Math.exp(-Math.pow((x - 230) / 18, 2)) * 410;
+      cHeight += Math.exp(-Math.pow((x - 635) / 24, 2)) * 175;
+      cHeight += Math.exp(-Math.pow((x - 725) / 20, 2)) * 160;
+      cHeight += Math.exp(-Math.pow((x - 840) / 25, 2)) * 145;
+      cHeight += Math.exp(-Math.pow((x - 930) / 25, 2)) * 260;
+
+      cyanVal = Math.max(1.06, Math.round(cHeight * 100) / 100);
+      cyanY = Math.max(25, 175 - (cyanVal / 650) * 150);
+    }
+
+    return {
+      curTime: `10/27 ${curH}:${curM}`,
+      cmpTime: `10/27 ${cmpH}:${cmpM}`,
+      greenVal: greenVal.toFixed(2),
+      cyanVal: cyanVal.toFixed(2),
+      greenY,
+      cyanY,
+    };
+  } else {
+    // switch1 variation: baseline rate around 68.80 Kbps, comparison around 0.85 Kbps
+    let greenVal = 68.80;
+    let cyanVal = 0.85;
+    let greenY = 155;
+    let cyanY = 175;
+
+    if (Math.abs(ratio - 0.472) < 0.02) {
+      greenVal = 68.80;
+      cyanVal = 0.85;
+      greenY = 155;
+      cyanY = 175;
+    } else {
+      const x = ratio * 1000;
+      let gHeight = 0;
+      gHeight += Math.exp(-Math.pow((x - 245) / 20, 2)) * 480;
+      gHeight += Math.exp(-Math.pow((x - 375) / 22, 2)) * 220;
+      gHeight += Math.exp(-Math.pow((x - 515) / 25, 2)) * 380;
+      gHeight += Math.exp(-Math.pow((x - 665) / 22, 2)) * 260;
+      gHeight += Math.exp(-Math.pow((x - 815) / 26, 2)) * 340;
+      if (x < 100) gHeight += (1 - x / 100) * 150;
+
+      greenVal = Math.max(0, Math.round(gHeight * 100) / 100);
+      greenY = Math.max(25, 175 - (greenVal / 650) * 150);
+
+      let cHeight = 0;
+      cHeight += Math.exp(-Math.pow((x - 145) / 16, 2)) * 260;
+      cHeight += Math.exp(-Math.pow((x - 340) / 18, 2)) * 360;
+      cHeight += Math.exp(-Math.pow((x - 590) / 20, 2)) * 220;
+      cHeight += Math.exp(-Math.pow((x - 770) / 22, 2)) * 280;
+
+      cyanVal = Math.max(0.85, Math.round(cHeight * 100) / 100);
+      cyanY = Math.max(25, 175 - (cyanVal / 650) * 150);
+    }
+
+    return {
+      curTime: `10/27 ${curH}:${curM}`,
+      cmpTime: `10/27 ${cmpH}:${cmpM}`,
+      greenVal: greenVal.toFixed(2),
+      cyanVal: cyanVal.toFixed(2),
+      greenY,
+      cyanY,
+    };
+  }
+}
+
+// Unified Comparison Card Component (Matching Figure 2/Figure 3 presentation)
+interface UnifiedCompareCardProps {
+  title: string;
+  badgeTime: string;
+  objectLabel: string;
+  variant?: 'switch' | 'switch1';
+  initialHoverRatio?: number;
+}
+
+const UnifiedCompareCard: React.FC<UnifiedCompareCardProps> = ({
+  title,
+  badgeTime,
+  objectLabel,
+  variant = 'switch',
+  initialHoverRatio = 0.472,
+}) => {
+  const [hoverRatio, setHoverRatio] = useState<number>(initialHoverRatio);
+  const [isHovered, setIsHovered] = useState<boolean>(false);
+  const [precision, setPrecision] = useState<string>('分钟');
+
+  const cardData = computeCurveData(hoverRatio, variant);
+  const svgCrosshairX = Math.max(45, Math.min(975, hoverRatio * 1000));
+  const tooltipLeftPercent = (svgCrosshairX / 1000) * 100;
+  const isTooltipOnRight = tooltipLeftPercent < 65;
+
+  // Green & Cyan SVG paths
+  const greenPathSwitch = `
+    M 45 85
+    C 55 90, 65 140, 75 160
+    C 85 165, 95 168, 105 158
+    C 112 148, 118 142, 125 145
+    C 132 148, 138 168, 145 170
+    C 152 172, 158 152, 165 150
+    C 172 148, 180 170, 195 173
+    L 255 173
+    C 265 173, 270 45, 275 32
+    C 280 42, 288 155, 298 165
+    C 305 172, 315 173, 335 173
+    C 345 173, 350 148, 358 145
+    C 365 142, 375 168, 388 173
+    L 402 173
+    C 412 173, 422 65, 428 52
+    C 435 62, 442 108, 452 118
+    C 462 122, 472 122, 480 140
+    C 488 160, 492 173, 510 173
+    L 575 173
+    C 585 173, 592 132, 598 130
+    C 605 128, 612 165, 620 173
+    C 628 173, 638 135, 645 130
+    C 652 125, 660 165, 672 173
+    L 715 173
+    C 725 173, 730 135, 738 132
+    C 745 130, 752 165, 760 168
+    C 770 172, 780 152, 795 155
+    C 805 158, 815 173, 835 173
+    C 848 173, 858 85, 865 75
+    C 872 82, 882 165, 895 173
+    L 925 173
+    C 935 173, 942 150, 948 148
+    C 955 146, 965 168, 980 173
+  `;
+
+  const cyanPathSwitch = `
+    M 45 175
+    L 85 175
+    C 90 175, 95 128, 100 125
+    C 105 122, 110 168, 115 175
+    L 175 175
+    C 185 175, 192 98, 198 88
+    C 205 92, 210 165, 215 173
+    C 220 173, 226 88, 232 78
+    C 238 82, 245 168, 252 175
+    L 590 175
+    C 605 175, 625 138, 635 135
+    C 645 132, 655 160, 665 162
+    C 675 164, 688 158, 698 158
+    C 710 158, 720 142, 728 138
+    C 735 135, 742 168, 750 175
+    L 810 175
+    C 825 175, 835 145, 842 142
+    C 850 140, 865 158, 878 155
+    C 890 152, 915 120, 928 115
+    C 940 110, 952 160, 962 165
+    C 970 168, 975 162, 980 160
+  `;
+
+  const greenPathSwitch1 = `
+    M 45 140
+    C 65 145, 80 155, 95 160
+    C 110 165, 125 170, 140 170
+    L 210 170
+    C 225 170, 235 60, 245 45
+    C 255 55, 265 150, 280 165
+    C 295 172, 320 173, 340 173
+    C 355 173, 365 130, 375 125
+    C 385 120, 395 165, 410 173
+    L 480 173
+    C 495 173, 505 80, 515 70
+    C 525 80, 535 155, 550 170
+    L 630 170
+    C 645 170, 655 110, 665 105
+    C 675 115, 685 165, 700 173
+    L 780 173
+    C 795 173, 805 90, 815 80
+    C 825 90, 835 160, 850 173
+    L 980 173
+  `;
+
+  const cyanPathSwitch1 = `
+    M 45 175
+    L 120 175
+    C 130 175, 138 120, 145 115
+    C 152 120, 160 168, 170 175
+    L 310 175
+    C 320 175, 330 95, 340 90
+    C 350 95, 360 165, 370 175
+    L 560 175
+    C 570 175, 580 130, 590 125
+    C 600 130, 610 168, 620 175
+    L 740 175
+    C 750 175, 760 115, 770 110
+    C 780 115, 790 165, 800 175
+    L 980 175
+  `;
+
+  const greenD = variant === 'switch1' ? greenPathSwitch1 : greenPathSwitch;
+  const cyanD = variant === 'switch1' ? cyanPathSwitch1 : cyanPathSwitch;
+
+  return (
+    <div
+      className="bg-white border border-gray-200 rounded-md p-3.5 shadow-2xs flex flex-col"
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* Header Row */}
+      <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+        <div className="flex items-center gap-2.5">
+          <span className="text-xs font-bold text-gray-800">{title}</span>
+          <span className="font-mono text-[11px] text-[#0084FF] bg-[#E6F4FF] border border-[#BAE0FF] px-2 py-0.5 rounded">
+            {badgeTime || '2026-10-27 09:25 - 2026-10-27 10:25'}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setHoverRatio(0.472);
+              setIsHovered(false);
+            }}
+            className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-[#0084FF] cursor-pointer transition-colors"
+          >
+            <RotateCw size={11} />
+            <span>重置</span>
+          </button>
+        </div>
+
+        <div className="flex items-center gap-3 text-xs text-gray-500">
+          {/* 周期对比 pill */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#F0F2F5] text-gray-700 rounded text-xs font-medium cursor-pointer hover:bg-gray-200 transition-colors">
+            <span className="w-3 h-3 rounded-full border border-gray-500 relative overflow-hidden inline-block shrink-0">
+              <span className="absolute left-0 top-0 bottom-0 w-1/2 bg-gray-500" />
+            </span>
+            <span>周期对比</span>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <span className="text-[11px] text-gray-500">数据精度</span>
+            <div className="relative">
+              <select
+                value={precision}
+                onChange={(e) => setPrecision(e.target.value)}
+                className="appearance-none h-5.5 pl-1.5 pr-5 border border-gray-300 rounded bg-white text-gray-700 text-[11px] cursor-pointer"
+              >
+                <option value="分钟">分钟</option>
+                <option value="5分钟">5分钟</option>
+                <option value="小时">小时</option>
+              </select>
+              <ChevronDown
+                size={10}
+                className="absolute right-1 top-1.5 text-gray-400 pointer-events-none"
+              />
+            </div>
+          </div>
+
+          <label className="flex items-center gap-1 cursor-pointer text-[11px]">
+            <input
+              type="checkbox"
+              className="w-3 h-3 rounded border-gray-300 text-[#0084FF]"
+            />
+            <span>刷新频率</span>
+          </label>
+
+          <Clock
+            size={13}
+            className="text-gray-400 hover:text-gray-600 cursor-pointer"
+          />
+          <MoreHorizontal
+            size={13}
+            className="text-gray-400 hover:text-gray-600 cursor-pointer"
+          />
+          <Maximize2
+            size={13}
+            className="text-gray-400 hover:text-gray-600 cursor-pointer"
+          />
+        </div>
+      </div>
+
+      {/* Chart Area */}
+      <div
+        className="relative w-full h-[220px] mt-2 select-none"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseMove={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const ratio = Math.max(
+            0.045,
+            Math.min(0.975, (e.clientX - rect.left) / rect.width)
+          );
+          setHoverRatio(ratio);
+          setIsHovered(true);
+        }}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        {/* Metric Unit Label Top Left */}
+        <span className="absolute top-0 left-0 text-[10px] text-gray-400 font-mono">
+          速率 (Kbps)
+        </span>
+
+        {/* SVG Chart */}
+        <svg
+          className="w-full h-full overflow-visible"
+          viewBox="0 0 1000 200"
+          preserveAspectRatio="none"
+        >
+          {/* Grid Lines: 650, 520, 390, 260, 130, 0 */}
+          {[
+            { y: 25, val: '650' },
+            { y: 55, val: '520' },
+            { y: 85, val: '390' },
+            { y: 115, val: '260' },
+            { y: 145, val: '130' },
+            { y: 175, val: '0' },
+          ].map((row) => (
+            <g key={row.y}>
+              <line
+                x1="45"
+                y1={row.y}
+                x2="980"
+                y2={row.y}
+                stroke={row.y === 175 ? '#D1D5DB' : '#E5E7EB'}
+                strokeDasharray={row.y === 175 ? undefined : '3 3'}
+              />
+              <text
+                x="38"
+                y={row.y + 3}
+                fill="#9CA3AF"
+                fontSize="9.5"
+                textAnchor="end"
+                fontFamily="monospace"
+              >
+                {row.val}
+              </text>
+            </g>
+          ))}
+
+          {/* X-Axis Time Ticks: 09:30, 09:40, 09:50, 10:00, 10:10, 10:20 */}
+          {[
+            { x: 120, label: '09:30' },
+            { x: 280, label: '09:40' },
+            { x: 440, label: '09:50' },
+            { x: 600, label: '10:00' },
+            { x: 760, label: '10:10' },
+            { x: 920, label: '10:20' },
+          ].map((t) => (
+            <text
+              key={t.label}
+              x={t.x}
+              y="190"
+              fill="#9CA3AF"
+              fontSize="9.5"
+              textAnchor="middle"
+              fontFamily="monospace"
+            >
+              {t.label}
+            </text>
+          ))}
+
+          {/* Curve 1: Green Current Time (当前时间) */}
+          <path d={greenD} fill="none" stroke="#52C41A" strokeWidth="1.8" />
+
+          {/* Curve 2: Cyan Comparison Time (对比时间) */}
+          <path d={cyanD} fill="none" stroke="#13C2C2" strokeWidth="1.8" />
+
+          {/* Crosshair and Indicators (Visible only on hover) */}
+          {isHovered && (
+            <g>
+              {/* Vertical Dashed Line */}
+              <line
+                x1={svgCrosshairX}
+                y1="25"
+                x2={svgCrosshairX}
+                y2="175"
+                stroke="#BFBFBF"
+                strokeDasharray="3 3"
+              />
+
+              {/* Top Anchor Pin (Green ring with horizontal wings) */}
+              <g transform={`translate(${svgCrosshairX}, 18)`}>
+                <line
+                  x1="-8"
+                  y1="0"
+                  x2="8"
+                  y2="0"
+                  stroke="#52C41A"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+                <circle
+                  cx="0"
+                  cy="0"
+                  r="4.5"
+                  fill="white"
+                  stroke="#52C41A"
+                  strokeWidth="2"
+                />
+              </g>
+
+              {/* Active Point on Green Curve */}
+              <circle
+                cx={svgCrosshairX}
+                cy={cardData.greenY}
+                r="3.5"
+                fill="#52C41A"
+                stroke="white"
+                strokeWidth="1.5"
+              />
+
+              {/* Active Point on Cyan Curve */}
+              <circle
+                cx={svgCrosshairX}
+                cy={cardData.cyanY}
+                r="3.5"
+                fill="#13C2C2"
+                stroke="white"
+                strokeWidth="1.5"
+              />
+            </g>
+          )}
+        </svg>
+
+        {/* Floating Tooltip Box (Hides immediately on mouse leave) */}
+        {isHovered && (
+          <div
+            className="absolute z-30 bg-white border border-gray-100 rounded-lg shadow-xl p-3 text-xs pointer-events-none select-none transition-all duration-75"
+            style={{
+              left: isTooltipOnRight
+                ? `calc(${tooltipLeftPercent}% + 12px)`
+                : undefined,
+              right: !isTooltipOnRight
+                ? `calc(${100 - tooltipLeftPercent}% + 12px)`
+                : undefined,
+              top: '12px',
+              width: '295px',
+            }}
+          >
+            {/* Row 1: Current Time Header */}
+            <div className="flex items-center justify-between text-gray-500 font-mono text-[11px] mb-1">
+              <span>{cardData.curTime}</span>
+              <span>速率 (Kbps)</span>
+            </div>
+
+            {/* Row 2: Current Time Value */}
+            <div className="flex items-center justify-between text-gray-800 font-medium text-xs mb-2.5">
+              <div className="flex items-center gap-1.5 truncate pr-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#52C41A] shrink-0" />
+                <span className="truncate">{objectLabel}(当前时间)</span>
+              </div>
+              <span className="font-mono font-bold shrink-0">
+                {cardData.greenVal} Kbps
+              </span>
+            </div>
+
+            {/* Row 3: Comparison Time Header */}
+            <div className="flex items-center justify-between text-gray-500 font-mono text-[11px] mb-1">
+              <span>{cardData.cmpTime}</span>
+              <span>速率 (Kbps)</span>
+            </div>
+
+            {/* Row 4: Comparison Time Value */}
+            <div className="flex items-center justify-between text-gray-800 font-medium text-xs">
+              <div className="flex items-center gap-1.5 truncate pr-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#13C2C2] shrink-0" />
+                <span className="truncate">{objectLabel}(对比时间)</span>
+              </div>
+              <span className="font-mono font-bold shrink-0">
+                {cardData.cyanVal} Kbps
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export const WorkbenchCompareView: React.FC<WorkbenchCompareProps> = ({
-  nodes = ['交换机1', '交换机2'],
-  nodeName = '交换机1',
+  nodes = ['交换机', '交换机1'],
+  nodeName = '交换机',
   baseTime = '2026-10-25 19:39 ~ 2026-10-25 20:39',
   compareTime = '2026-10-24 19:39 ~ 2026-10-24 20:39',
+  selectedMetrics,
   initialMode,
 }) => {
   const displayNodes =
     nodes && nodes.length > 0
       ? nodes.length === 1
-        ? [nodes[0], '交换机2']
+        ? [nodes[0], '交换机1']
         : nodes
-      : ['交换机1', '交换机2'];
+      : ['交换机', '交换机1'];
 
   const [viewMode, setViewMode] = useState<'multi' | 'single'>(
     initialMode || (nodes && nodes.length > 1 ? 'multi' : 'single')
@@ -60,7 +582,9 @@ export const WorkbenchCompareView: React.FC<WorkbenchCompareProps> = ({
   // Tree state
   const [filterText, setFilterText] = useState('');
   const [treeTab, setTreeTab] = useState<'custom' | 'scenario'>('custom');
-  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({
+  const [expandedFolders, setExpandedFolders] = useState<
+    Record<string, boolean>
+  >({
     province: false,
     dscp: false,
     drilldown: false,
@@ -78,22 +602,8 @@ export const WorkbenchCompareView: React.FC<WorkbenchCompareProps> = ({
     }));
   };
 
-  // Hover states for tooltips
-  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
-  const [hoverX, setHoverX] = useState<number | null>(null);
-
   // Precisions
   const [topPrecision, setTopPrecision] = useState('分钟');
-  const [cardPrecisions, setCardPrecisions] = useState<Record<string, string>>({
-    c1: '分钟',
-    c2: '分钟',
-    c3: '分钟',
-    c4: '分钟',
-  });
-
-  const setCardPrecision = (key: string, val: string) => {
-    setCardPrecisions((prev) => ({ ...prev, [key]: val }));
-  };
 
   // Format time range for badges
   const formatBadgeTime = (t: string) => {
@@ -104,58 +614,170 @@ export const WorkbenchCompareView: React.FC<WorkbenchCompareProps> = ({
   const baseBadgeTime = formatBadgeTime(baseTime);
   const compareBadgeTime = formatBadgeTime(compareTime);
 
+  // Pre-configured node datasets matching 速率-only comparison
+  const nodeCompareDataset: Record<
+    string,
+    {
+      name: string;
+      metrics: {
+        name: string;
+        baseValue: string;
+        baseUnit: string;
+        compareValue: string;
+        compareUnit: string;
+        diff: string;
+        diffPercent: string;
+        trend: 'up' | 'down' | 'flat';
+        isGood: boolean;
+      }[];
+    }
+  > = {
+    交换机: {
+      name: '交换机',
+      metrics: [
+        {
+          name: '速率',
+          baseValue: '187.45',
+          baseUnit: 'Kbps',
+          compareValue: '108.40',
+          compareUnit: 'Kbps',
+          diff: '+79.05 Kbps',
+          diffPercent: '+72.92%',
+          trend: 'up',
+          isGood: true,
+        },
+      ],
+    },
+    交换机1: {
+      name: '交换机1',
+      metrics: [
+        {
+          name: '速率',
+          baseValue: '68.80',
+          baseUnit: 'Kbps',
+          compareValue: '45.20',
+          compareUnit: 'Kbps',
+          diff: '+23.60 Kbps',
+          diffPercent: '+52.21%',
+          trend: 'up',
+          isGood: true,
+        },
+      ],
+    },
+    交换机2: {
+      name: '交换机2',
+      metrics: [
+        {
+          name: '速率',
+          baseValue: '68.80',
+          baseUnit: 'Kbps',
+          compareValue: '45.20',
+          compareUnit: 'Kbps',
+          diff: '+23.60 Kbps',
+          diffPercent: '+52.21%',
+          trend: 'up',
+          isGood: true,
+        },
+      ],
+    },
+  };
+
+  // Renders conclusion with ONLY the single metric "速率"
+  const renderNodeConclusion = (targetNode: string) => {
+    const data =
+      nodeCompareDataset[targetNode] ||
+      nodeCompareDataset[targetNode.replace(/\d+$/, '')] ||
+      nodeCompareDataset['交换机1'] ||
+      nodeCompareDataset['交换机'];
+
+    const rate = data.metrics.find((m) => m.name === '速率') || data.metrics[0];
+
+    const formatDiffText = (m: typeof rate) => {
+      if (m.trend === 'flat' || m.diffPercent === '0.00%') return '数据持平';
+      const action = m.trend === 'down' ? '下降' : '上升';
+      const cleanDiff = m.diff.replace(/^[+-]/, '');
+      return `${action}${cleanDiff}，变化率是 ${m.diffPercent}`;
+    };
+
+    return (
+      <span>
+        <span className="font-semibold text-gray-900">{targetNode}</span>{' '}
+        在对比时间（{compareBadgeTime}）内速率是{' '}
+        <span className="font-mono font-medium text-gray-900">
+          {rate.compareValue} {rate.compareUnit}
+        </span>
+        ，当前时间（{baseBadgeTime}）内速率是{' '}
+        <span className="font-mono font-medium text-gray-900">
+          {rate.baseValue} {rate.baseUnit}
+        </span>
+        ，相较对比时段{' '}
+        <span
+          className={`font-semibold ${
+            rate.trend === 'down' ? 'text-[#52C41A]' : 'text-[#0084FF]'
+          }`}
+        >
+          {formatDiffText(rate)}
+        </span>
+        。
+      </span>
+    );
+  };
+
   return (
     <div className="flex-1 flex overflow-hidden bg-[#F4F6F9] select-none">
-      {/* 1. Left Tree Sidebar matching Image 1 */}
-      <div className="w-56 bg-white border-r border-gray-200 flex flex-col shrink-0 text-xs text-gray-700 h-full">
-        {/* Top 2 Tabs: 自定义视图 / 场景报表 */}
-        <div className="flex border-b border-gray-200 h-9 bg-white">
+      {/* 1. Left Tree Sidebar */}
+      <div className="w-56 border-r border-gray-200 bg-white flex flex-col shrink-0 text-xs select-none">
+        {/* Top Tab Bar: 自定义视图 | 场景报表 */}
+        <div className="flex border-b border-gray-200 text-xs font-medium">
           <button
             type="button"
             onClick={() => setTreeTab('custom')}
-            className={`flex-1 h-full flex items-center justify-center font-medium cursor-pointer relative ${
+            className={`flex-1 py-2 text-center transition-colors cursor-pointer relative ${
               treeTab === 'custom'
-                ? 'text-[#0084FF]'
+                ? 'text-[#0084FF] font-semibold'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            <span>自定义视图</span>
+            自定义视图
             {treeTab === 'custom' && (
-              <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#0084FF]" />
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0084FF]" />
             )}
           </button>
           <button
             type="button"
             onClick={() => setTreeTab('scenario')}
-            className={`flex-1 h-full flex items-center justify-center font-medium cursor-pointer relative ${
+            className={`flex-1 py-2 text-center transition-colors cursor-pointer relative ${
               treeTab === 'scenario'
-                ? 'text-[#0084FF]'
+                ? 'text-[#0084FF] font-semibold'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            <span>场景报表</span>
+            场景报表
             {treeTab === 'scenario' && (
-              <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#0084FF]" />
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0084FF]" />
             )}
           </button>
         </div>
 
-        {/* Filter input + 新建视图 */}
-        <div className="p-2 space-y-1.5 border-b border-gray-100">
+        {/* Search & New View Button */}
+        <div className="p-2 space-y-2 border-b border-gray-100">
           <div className="relative">
+            <Search
+              size={12}
+              className="absolute left-2.5 top-2 text-gray-400"
+            />
             <input
               type="text"
               placeholder="过滤..."
               value={filterText}
               onChange={(e) => setFilterText(e.target.value)}
-              className="w-full h-7 pl-6 pr-2 text-xs border border-gray-300 rounded bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#0084FF]"
+              className="w-full pl-7 pr-2 py-1 text-xs border border-gray-200 rounded focus:outline-hidden focus:border-[#0084FF] placeholder-gray-400"
             />
-            <Search size={12} className="absolute left-2 top-2 text-gray-400" />
           </div>
 
           <button
             type="button"
-            className="w-full h-6.5 border border-gray-300 rounded flex items-center justify-center gap-1.5 text-gray-600 bg-white hover:bg-gray-50 transition-colors cursor-pointer text-xs"
+            className="w-full py-1 border border-gray-200 hover:border-gray-300 rounded text-gray-700 flex items-center justify-center gap-1.5 cursor-pointer bg-white hover:bg-gray-50 transition-colors shadow-2xs"
           >
             <PlusSquare size={13} className="text-gray-500" />
             <span>新建视图</span>
@@ -164,11 +786,16 @@ export const WorkbenchCompareView: React.FC<WorkbenchCompareProps> = ({
 
         {/* Section Header */}
         <div className="px-3 py-1.5 flex items-center justify-between text-gray-500 border-b border-gray-100 bg-[#FAFAFA]">
-          <span className="font-semibold text-gray-800 text-[11px]">自定义视图</span>
+          <span className="font-semibold text-gray-800 text-[11px]">
+            自定义视图
+          </span>
           <div className="flex items-center gap-2 text-gray-400">
             <Clock size={12} className="hover:text-gray-600 cursor-pointer" />
             <Shield size={12} className="hover:text-gray-600 cursor-pointer" />
-            <FolderPlus size={12} className="hover:text-gray-600 cursor-pointer" />
+            <FolderPlus
+              size={12}
+              className="hover:text-gray-600 cursor-pointer"
+            />
           </div>
         </div>
 
@@ -190,7 +817,11 @@ export const WorkbenchCompareView: React.FC<WorkbenchCompareProps> = ({
               onClick={() => toggleFolder('province')}
               className="flex items-center gap-1.5 px-2 py-1 hover:bg-gray-100 rounded cursor-pointer text-gray-700"
             >
-              {expandedFolders.province ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+              {expandedFolders.province ? (
+                <ChevronDown size={11} />
+              ) : (
+                <ChevronRight size={11} />
+              )}
               <Folder size={13} className="text-[#0084FF] shrink-0" />
               <span>省份</span>
             </div>
@@ -210,7 +841,11 @@ export const WorkbenchCompareView: React.FC<WorkbenchCompareProps> = ({
               onClick={() => toggleFolder('dscp')}
               className="flex items-center gap-1.5 px-2 py-1 hover:bg-gray-100 rounded cursor-pointer text-gray-700"
             >
-              {expandedFolders.dscp ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+              {expandedFolders.dscp ? (
+                <ChevronDown size={11} />
+              ) : (
+                <ChevronRight size={11} />
+              )}
               <Folder size={13} className="text-[#0084FF] shrink-0" />
               <span>DSCP+站点</span>
             </div>
@@ -230,7 +865,11 @@ export const WorkbenchCompareView: React.FC<WorkbenchCompareProps> = ({
               onClick={() => toggleFolder('drilldown')}
               className="flex items-center gap-1.5 px-2 py-1 hover:bg-gray-100 rounded cursor-pointer text-gray-700"
             >
-              {expandedFolders.drilldown ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+              {expandedFolders.drilldown ? (
+                <ChevronDown size={11} />
+              ) : (
+                <ChevronRight size={11} />
+              )}
               <Folder size={13} className="text-[#0084FF] shrink-0" />
               <span>自定义视图下钻</span>
             </div>
@@ -250,7 +889,11 @@ export const WorkbenchCompareView: React.FC<WorkbenchCompareProps> = ({
               onClick={() => toggleFolder('rnd')}
               className="flex items-center gap-1.5 px-2 py-1 hover:bg-gray-100 rounded cursor-pointer text-gray-700"
             >
-              {expandedFolders.rnd ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+              {expandedFolders.rnd ? (
+                <ChevronDown size={11} />
+              ) : (
+                <ChevronRight size={11} />
+              )}
               <Folder size={13} className="text-[#0084FF] shrink-0" />
               <span>研发测试</span>
             </div>
@@ -286,7 +929,11 @@ export const WorkbenchCompareView: React.FC<WorkbenchCompareProps> = ({
               onClick={() => toggleFolder('ai')}
               className="flex items-center gap-1.5 px-2 py-1 hover:bg-gray-100 rounded cursor-pointer text-gray-700"
             >
-              {expandedFolders.ai ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+              {expandedFolders.ai ? (
+                <ChevronDown size={11} />
+              ) : (
+                <ChevronRight size={11} />
+              )}
               <Folder size={13} className="text-[#0084FF] shrink-0" />
               <span>AI相关</span>
             </div>
@@ -306,7 +953,11 @@ export const WorkbenchCompareView: React.FC<WorkbenchCompareProps> = ({
               onClick={() => toggleFolder('mouyi')}
               className="flex items-center gap-1.5 px-2 py-1 hover:bg-gray-100 rounded cursor-pointer text-gray-700"
             >
-              {expandedFolders.mouyi ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+              {expandedFolders.mouyi ? (
+                <ChevronDown size={11} />
+              ) : (
+                <ChevronRight size={11} />
+              )}
               {expandedFolders.mouyi ? (
                 <FolderOpen size={13} className="text-[#0084FF] shrink-0" />
               ) : (
@@ -321,7 +972,11 @@ export const WorkbenchCompareView: React.FC<WorkbenchCompareProps> = ({
                   onClick={() => toggleFolder('periodic')}
                   className="flex items-center gap-1.5 px-2 py-1 hover:bg-gray-100 rounded cursor-pointer text-gray-700"
                 >
-                  {expandedFolders.periodic ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+                  {expandedFolders.periodic ? (
+                    <ChevronDown size={11} />
+                  ) : (
+                    <ChevronRight size={11} />
+                  )}
                   {expandedFolders.periodic ? (
                     <FolderOpen size={13} className="text-[#0084FF] shrink-0" />
                   ) : (
@@ -332,7 +987,7 @@ export const WorkbenchCompareView: React.FC<WorkbenchCompareProps> = ({
 
                 {expandedFolders.periodic && (
                   <div className="pl-5 py-0.5 space-y-0.5">
-                    {/* Item 1: 多对象对比 (Active in Image 1) */}
+                    {/* Item 1: 多对象对比 */}
                     <div
                       onClick={() => setViewMode('multi')}
                       className={`flex items-center justify-between px-2 py-1 rounded cursor-pointer transition-colors ${
@@ -342,11 +997,17 @@ export const WorkbenchCompareView: React.FC<WorkbenchCompareProps> = ({
                       }`}
                     >
                       <div className="flex items-center gap-1.5 truncate">
-                        <FileText size={12} className="text-[#0084FF] shrink-0" />
+                        <FileText
+                          size={12}
+                          className="text-[#0084FF] shrink-0"
+                        />
                         <span className="truncate">多对象对比</span>
                       </div>
                       {viewMode === 'multi' && (
-                        <MoreHorizontal size={13} className="text-gray-400 hover:text-gray-700 shrink-0" />
+                        <MoreHorizontal
+                          size={13}
+                          className="text-gray-400 hover:text-gray-700 shrink-0"
+                        />
                       )}
                     </div>
 
@@ -360,11 +1021,17 @@ export const WorkbenchCompareView: React.FC<WorkbenchCompareProps> = ({
                       }`}
                     >
                       <div className="flex items-center gap-1.5 truncate">
-                        <FileText size={12} className="text-[#0084FF] shrink-0" />
+                        <FileText
+                          size={12}
+                          className="text-[#0084FF] shrink-0"
+                        />
                         <span className="truncate">周期对比</span>
                       </div>
                       {viewMode === 'single' && (
-                        <MoreHorizontal size={13} className="text-gray-400 hover:text-gray-700 shrink-0" />
+                        <MoreHorizontal
+                          size={13}
+                          className="text-gray-400 hover:text-gray-700 shrink-0"
+                        />
                       )}
                     </div>
                   </div>
@@ -379,70 +1046,70 @@ export const WorkbenchCompareView: React.FC<WorkbenchCompareProps> = ({
               onClick={() => toggleFolder('ningbo')}
               className="flex items-center gap-1.5 px-2 py-1 hover:bg-gray-100 rounded cursor-pointer text-gray-700"
             >
-              {expandedFolders.ningbo ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+              {expandedFolders.ningbo ? (
+                <ChevronDown size={11} />
+              ) : (
+                <ChevronRight size={11} />
+              )}
               <Folder size={13} className="text-[#0084FF] shrink-0" />
               <span>宁波联通</span>
             </div>
             {expandedFolders.ningbo && (
-              <div className="pl-6 py-0.5 space-y-0.5">
-                {['宁波联通2', '宁波联通', '2'].map((item) => (
-                  <div
-                    key={item}
-                    className="flex items-center gap-1.5 px-2 py-0.5 hover:bg-gray-100 rounded cursor-pointer text-gray-600"
-                  >
-                    <FileText size={12} className="text-[#0084FF] shrink-0" />
-                    <span>{item}</span>
-                  </div>
-                ))}
+              <div className="pl-6 py-0.5">
+                <div className="flex items-center gap-1.5 px-2 py-0.5 hover:bg-gray-100 rounded cursor-pointer text-gray-600">
+                  <FileText size={12} className="text-[#0084FF] shrink-0" />
+                  <span>宁波联通测试</span>
+                </div>
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* 2. Right Main View */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Top Control Bar matching Image 1 */}
-        <div className="h-10 bg-white border-b border-gray-200 px-4 flex items-center justify-between shrink-0">
-          {/* Left tools */}
-          <div className="flex items-center gap-4 text-xs">
+      {/* 2. Main Workbench Periodic Compare Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#F4F6F9]">
+        {/* Top Filter and View Bar */}
+        <div className="h-10 bg-white border-b border-gray-200 px-4 flex items-center justify-between text-xs shrink-0 select-none shadow-2xs">
+          {/* Left Controls */}
+          <div className="flex items-center gap-4 text-gray-600">
             <div className="flex items-center gap-1.5">
-              <span className="text-gray-600">数据精度</span>
+              <span>数据精度</span>
               <div className="relative">
                 <select
                   value={topPrecision}
                   onChange={(e) => setTopPrecision(e.target.value)}
-                  className="appearance-none h-6 pl-2 pr-6 border border-gray-300 rounded bg-white text-gray-700 hover:border-gray-400 cursor-pointer text-xs"
+                  className="appearance-none h-6 pl-2 pr-6 border border-gray-300 rounded bg-white text-gray-700 text-xs cursor-pointer focus:outline-hidden"
                 >
                   <option value="分钟">分钟</option>
                   <option value="5分钟">5分钟</option>
                   <option value="小时">小时</option>
-                  <option value="天">天</option>
                 </select>
                 <ChevronDown
-                  size={12}
-                  className="absolute right-1.5 top-1.5 text-gray-400 pointer-events-none"
+                  size={11}
+                  className="absolute right-1.5 top-2 text-gray-400 pointer-events-none"
                 />
               </div>
             </div>
 
-            <label className="flex items-center gap-1 cursor-pointer text-gray-600 select-none">
-              <input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 text-[#0084FF]" />
+            <label className="flex items-center gap-1 cursor-pointer">
+              <input
+                type="checkbox"
+                className="w-3.5 h-3.5 rounded border-gray-300 text-[#0084FF]"
+              />
               <span>刷新频率</span>
             </label>
 
-            <button
-              type="button"
-              className="flex items-center gap-1 text-[#0084FF] hover:text-[#0073E6] cursor-pointer"
-            >
+            <div className="flex items-center gap-1.5 text-xs text-gray-500">
               <span className="w-3.5 h-[2px] bg-[#0084FF] inline-block" />
               <span>基线</span>
-            </button>
+            </div>
           </div>
 
-          {/* Center Title: 多对象对比 in multi mode, 周期对比 in single mode */}
-          <div className="text-sm font-semibold text-gray-800 tracking-wide">
-            {viewMode === 'multi' ? '多对象对比' : '周期对比'}
+          {/* Center Title */}
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-gray-800 text-sm">
+              {viewMode === 'multi' ? '多对象对比' : '周期对比'}
+            </span>
           </div>
 
           {/* Right Action Buttons */}
@@ -476,855 +1143,55 @@ export const WorkbenchCompareView: React.FC<WorkbenchCompareProps> = ({
         {/* Scrollable Charts Container */}
         <div className="flex-1 overflow-y-auto p-3.5 space-y-3.5">
           {/* ======================================================== */}
-          {/* MODE 1: MULTI-OBJECT COMPARISON (图1多对象对比 2x2 样式) */}
+          {/* MODE 1: MULTI-OBJECT COMPARISON (图1: 上下两个卡片: 交换机 & 交换机1) */}
           {/* ======================================================== */}
           {viewMode === 'multi' ? (
             <div className="space-y-3.5">
-              {/* 对比分析结论 (参考原有设计样式，加载在图表上方) */}
+              {/* 对比分析结论 (指标仅为速率对比，去除其他指标) */}
               <div className="w-full bg-[#F4F9FF] border border-[#BAE0FF] rounded-lg p-3 text-xs leading-relaxed text-gray-700 shadow-2xs flex items-start gap-2.5">
                 <div className="w-5 h-5 rounded-full bg-[#0084FF] text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
                   <Sparkles size={12} />
                 </div>
-                <div className="flex-1">
-                  <div className="text-[11px] font-bold text-[#0084FF] mb-1 flex items-center gap-1.5">
-                    <span>周期对比分析结论</span>
+                <div className="flex-1 space-y-1.5">
+                  <div className="text-[11px] font-bold text-[#0084FF] flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span>周期对比分析结论</span>
+                    </div>
                   </div>
-                  <div className="text-gray-700 leading-normal space-y-1">
-                    <div>
-                      <span className="font-semibold text-gray-900">{displayNodes[0] || '交换机1'}</span>{' '}
-                      在对比时间（{compareTime}）内流量是{' '}
-                      <span className="font-mono font-medium text-gray-900">14.20 KB</span>，当前时间（{baseTime}）内流量是{' '}
-                      <span className="font-mono font-medium text-gray-900">19.63 KB</span>，相较对比时段{' '}
-                      <span className="font-semibold text-[#0084FF]">上升5.43 KB，变化率是 +38.24%</span>；平均包率在对比时间内是{' '}
-                      <span className="font-mono font-medium text-gray-900">1.20 pps</span>，当前时间是{' '}
-                      <span className="font-mono font-medium text-gray-900">1.85 pps</span>，相较对比时段{' '}
-                      <span className="font-semibold text-[#0084FF]">上升0.65 pps，变化率是 +54.17%</span>。
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-900">{displayNodes[1] || '交换机2'}</span>{' '}
-                      在对比时间（{compareTime}）内流量是{' '}
-                      <span className="font-mono font-medium text-gray-900">108.40 MB</span>，当前时间（{baseTime}）内流量是{' '}
-                      <span className="font-mono font-medium text-gray-900">125.81 MB</span>，相较对比时段{' '}
-                      <span className="font-semibold text-[#0084FF]">上升17.41 MB，变化率是 +16.06%</span>；速率在对比时间内是{' '}
-                      <span className="font-mono font-medium text-gray-900">145.20 Kbps</span>，当前时间是{' '}
-                      <span className="font-mono font-medium text-gray-900">168.50 Kbps</span>，相较对比时段{' '}
-                      <span className="font-semibold text-[#0084FF]">上升23.30 Kbps，变化率是 +16.05%</span>。
-                    </div>
+                  <div className="space-y-1.5 text-gray-700 leading-relaxed">
+                    {displayNodes.map((n) => (
+                      <div key={n} className="flex items-start gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#0084FF] shrink-0 mt-1.5" />
+                        <div className="flex-1">{renderNodeConclusion(n)}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
 
-              {/* Row 1: Node 1 (交换机1-基准 & 交换机1-周期) */}
-              <div className="grid grid-cols-2 gap-3.5">
-                {/* Row 1 Left: 交换机1-基准 */}
-                <div className="bg-white border border-gray-200 rounded-md p-3 shadow-2xs flex flex-col">
-                  {/* Card Header */}
-                  <div className="flex items-center justify-between pb-1.5 border-b border-gray-100">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-gray-800">
-                        {displayNodes[0] || '交换机1'}-基准
-                      </span>
-                      <div
-                        title={`基准时段: ${baseBadgeTime}`}
-                        className="w-4.5 h-4.5 rounded-full bg-[#E6F4FF] flex items-center justify-center cursor-pointer text-[#0084FF]"
-                      >
-                        <Clock size={11} />
-                      </div>
-                      <button
-                        type="button"
-                        aria-label="重置"
-                        className="text-gray-400 hover:text-[#0084FF] cursor-pointer"
-                      >
-                        <RotateCw size={11} />
-                      </button>
-                    </div>
+              {/* 上下两个卡片，卡片样式与呈现查看选择一个对比节点后展示样式 (图2样式) */}
+              {/* Top Card: 交换机 */}
+              <UnifiedCompareCard
+                title={displayNodes[0] || '交换机'}
+                badgeTime={baseBadgeTime || '2026-10-27 09:25 - 2026-10-27 10:25'}
+                objectLabel="应用(禅道公网)_Interface 1(DataCenter-SH)"
+                variant="switch"
+              />
 
-                    <div className="flex items-center gap-2.5 text-xs text-gray-500">
-                      <div className="flex items-center gap-1">
-                        <span className="text-[10px] text-gray-400">数据精度</span>
-                        <div className="relative">
-                          <select
-                            value={cardPrecisions.c1}
-                            onChange={(e) => setCardPrecision('c1', e.target.value)}
-                            className="appearance-none h-5 pl-1.5 pr-4 border border-gray-300 rounded bg-white text-gray-700 text-[10px] cursor-pointer"
-                          >
-                            <option value="分钟">分钟</option>
-                            <option value="5分钟">5分钟</option>
-                            <option value="小时">小时</option>
-                          </select>
-                          <ChevronDown
-                            size={9}
-                            className="absolute right-1 top-1.5 text-gray-400 pointer-events-none"
-                          />
-                        </div>
-                      </div>
-
-                      <label className="flex items-center gap-1 cursor-pointer text-[10px]">
-                        <input type="checkbox" className="w-3 h-3 rounded border-gray-300 text-[#0084FF]" />
-                        <span>刷新频率</span>
-                      </label>
-
-                      <Clock size={12} className="text-gray-400 hover:text-gray-600 cursor-pointer" />
-                    </div>
-                  </div>
-
-                  {/* Legends Bar */}
-                  <div className="py-1.5 flex items-center justify-between text-[10px] text-gray-600">
-                    <div className="flex items-center gap-3 truncate">
-                      <div className="flex items-center gap-1 cursor-pointer hover:text-gray-900 truncate">
-                        <span className="w-3.5 h-[2px] bg-[#52C41A] relative flex items-center justify-center shrink-0">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#52C41A]" />
-                        </span>
-                        <span className="truncate">应用(HTTPS_l7)_Interface 1(DataCenter-SH)_流量</span>
-                      </div>
-                      <div className="flex items-center gap-1 cursor-pointer hover:text-gray-900 truncate">
-                        <span className="w-3.5 h-[2px] bg-[#13C2C2] relative flex items-center justify-center shrink-0">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#13C2C2]" />
-                        </span>
-                        <span className="truncate">应用(HTTPS...</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0 text-gray-400">
-                      <div className="flex items-center gap-0.5 font-mono text-[9px]">
-                        <ChevronLeft size={11} className="cursor-pointer hover:text-gray-700" />
-                        <span>1/4</span>
-                        <ChevronRight size={11} className="cursor-pointer hover:text-gray-700" />
-                      </div>
-                      <span className="text-[10px] text-gray-400">速率 (Mbps)</span>
-                    </div>
-                  </div>
-
-                  {/* SVG Chart */}
-                  <div
-                    className="relative w-full h-[155px] mt-0.5"
-                    onMouseMove={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setHoveredCard('c1');
-                      setHoverX(Math.max(30, Math.min(rect.width - 30, e.clientX - rect.left)));
-                    }}
-                    onMouseLeave={() => setHoveredCard(null)}
-                  >
-                    <span className="absolute top-0 left-0 text-[9px] text-gray-400 font-mono">
-                      流量 (MB)
-                    </span>
-
-                    <svg className="w-full h-full overflow-visible" viewBox="0 0 500 135" preserveAspectRatio="none">
-                      {/* Grid Lines for Y = 80, 60, 40, 20, 0 */}
-                      {[
-                        { y: 15, lVal: '80', rVal: '10' },
-                        { y: 42, lVal: '60', rVal: '8' },
-                        { y: 69, lVal: '40', rVal: '6' },
-                        { y: 96, lVal: '20', rVal: '4' },
-                        { y: 120, lVal: '0', rVal: '0' },
-                      ].map((row) => (
-                        <g key={row.y}>
-                          <line
-                            x1="25"
-                            y1={row.y}
-                            x2="475"
-                            y2={row.y}
-                            stroke={row.y === 120 ? '#D1D5DB' : '#E5E7EB'}
-                            strokeDasharray={row.y === 120 ? undefined : '3 3'}
-                          />
-                          <text x="22" y={row.y + 3} fill="#9CA3AF" fontSize="8" textAnchor="end" fontFamily="monospace">
-                            {row.lVal}
-                          </text>
-                          <text x="478" y={row.y + 3} fill="#9CA3AF" fontSize="8" textAnchor="start" fontFamily="monospace">
-                            {row.rVal}
-                          </text>
-                        </g>
-                      ))}
-
-                      {/* X Axis Time Ticks: 19:40, 19:50, 20:00, 20:10, 20:20, 20:30 */}
-                      {[
-                        { x: 50, label: '19:40' },
-                        { x: 130, label: '19:50' },
-                        { x: 215, label: '20:00' },
-                        { x: 300, label: '20:10' },
-                        { x: 385, label: '20:20' },
-                        { x: 460, label: '20:30' },
-                      ].map((t) => (
-                        <text key={t.label} x={t.x} y="132" fill="#9CA3AF" fontSize="8" textAnchor="middle" fontFamily="monospace">
-                          {t.label}
-                        </text>
-                      ))}
-
-                      {/* Curve 1: Green Periodic Peaks matching Image 1 */}
-                      <path
-                        d="
-                          M 25 105
-                          L 50 105
-                          Q 60 70 70 70
-                          Q 80 70 90 105
-                          L 115 105
-                          Q 125 75 132 72
-                          Q 140 75 150 105
-                          L 170 105
-                          Q 180 35 188 30
-                          Q 196 35 205 105
-                          L 220 105
-                          Q 228 40 236 35
-                          Q 244 42 255 105
-                          L 275 105
-                          Q 285 70 292 68
-                          Q 300 72 310 105
-                          L 330 105
-                          Q 340 92 346 90
-                          Q 352 92 360 105
-                          L 380 105
-                          Q 390 70 398 65
-                          Q 406 72 415 105
-                          L 435 105
-                          Q 442 90 448 88
-                          Q 455 92 462 105
-                          L 475 105
-                        "
-                        fill="none"
-                        stroke="#52C41A"
-                        strokeWidth="1.5"
-                      />
-
-                      {/* Curve 2: Gold/Orange rate curve */}
-                      <path
-                        d="
-                          M 25 107
-                          L 50 107
-                          Q 60 75 70 75
-                          Q 80 75 90 107
-                          L 115 107
-                          Q 125 80 132 78
-                          Q 140 80 150 107
-                          L 170 107
-                          Q 180 45 188 40
-                          Q 196 45 205 107
-                          L 220 107
-                          Q 228 48 236 44
-                          Q 244 50 255 107
-                          L 275 107
-                          Q 285 78 292 76
-                          Q 300 80 310 107
-                          L 330 107
-                          Q 340 96 346 94
-                          Q 352 96 360 107
-                          L 380 107
-                          Q 390 78 398 74
-                          Q 406 80 415 107
-                          L 435 107
-                          Q 442 94 448 92
-                          Q 455 96 462 107
-                          L 475 107
-                        "
-                        fill="none"
-                        stroke="#FA8C16"
-                        strokeWidth="1.2"
-                      />
-
-                      {/* Curve 3: Cyan baseline */}
-                      <path d="M 25 116 L 475 116" fill="none" stroke="#13C2C2" strokeWidth="1" />
-                    </svg>
-
-                    {hoveredCard === 'c1' && hoverX !== null && (
-                      <div
-                        className="absolute top-0 bottom-4 w-[1px] border-l border-dashed border-[#0084FF] pointer-events-none"
-                        style={{ left: `${hoverX}px` }}
-                      />
-                    )}
-                  </div>
-                </div>
-
-                {/* Row 1 Right: 交换机1-周期 */}
-                <div className="bg-white border border-gray-200 rounded-md p-3 shadow-2xs flex flex-col">
-                  {/* Card Header */}
-                  <div className="flex items-center justify-between pb-1.5 border-b border-gray-100">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-gray-800">
-                        {displayNodes[0] || '交换机1'}-周期
-                      </span>
-                      <div
-                        title={`对比时段: ${compareBadgeTime}`}
-                        className="w-4.5 h-4.5 rounded-full bg-[#E6F4FF] flex items-center justify-center cursor-pointer text-[#0084FF]"
-                      >
-                        <Clock size={11} />
-                      </div>
-                      <button
-                        type="button"
-                        aria-label="重置"
-                        className="text-gray-400 hover:text-[#0084FF] cursor-pointer"
-                      >
-                        <RotateCw size={11} />
-                      </button>
-                    </div>
-
-                    <div className="flex items-center gap-2.5 text-xs text-gray-500">
-                      <div className="flex items-center gap-1">
-                        <span className="text-[10px] text-gray-400">数据精度</span>
-                        <div className="relative">
-                          <select
-                            value={cardPrecisions.c2}
-                            onChange={(e) => setCardPrecision('c2', e.target.value)}
-                            className="appearance-none h-5 pl-1.5 pr-4 border border-gray-300 rounded bg-white text-gray-700 text-[10px] cursor-pointer"
-                          >
-                            <option value="分钟">分钟</option>
-                            <option value="5分钟">5分钟</option>
-                            <option value="小时">小时</option>
-                          </select>
-                          <ChevronDown
-                            size={9}
-                            className="absolute right-1 top-1.5 text-gray-400 pointer-events-none"
-                          />
-                        </div>
-                      </div>
-
-                      <label className="flex items-center gap-1 cursor-pointer text-[10px]">
-                        <input type="checkbox" className="w-3 h-3 rounded border-gray-300 text-[#0084FF]" />
-                        <span>刷新频率</span>
-                      </label>
-
-                      <Clock size={12} className="text-gray-400 hover:text-gray-600 cursor-pointer" />
-                      <Maximize2 size={12} className="text-gray-400 hover:text-gray-600 cursor-pointer" />
-                      <MoreHorizontal size={12} className="text-gray-400 hover:text-gray-600 cursor-pointer" />
-                    </div>
-                  </div>
-
-                  {/* Legends Bar */}
-                  <div className="py-1.5 flex items-center justify-between text-[10px] text-gray-600">
-                    <div className="flex items-center gap-3 truncate">
-                      <div className="flex items-center gap-1 cursor-pointer hover:text-gray-900 truncate">
-                        <span className="w-3.5 h-[2px] bg-[#52C41A] relative flex items-center justify-center shrink-0">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#52C41A]" />
-                        </span>
-                        <span className="truncate">应用(HTTPS_l7)_Interface 1(DataCenter-SH)_流量</span>
-                      </div>
-                      <div className="flex items-center gap-1 cursor-pointer hover:text-gray-900 truncate">
-                        <span className="w-3.5 h-[2px] bg-[#13C2C2] relative flex items-center justify-center shrink-0">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#13C2C2]" />
-                        </span>
-                        <span className="truncate">应用(HTTPS...</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0 text-gray-400">
-                      <div className="flex items-center gap-0.5 font-mono text-[9px]">
-                        <ChevronLeft size={11} className="cursor-pointer hover:text-gray-700" />
-                        <span>1/4</span>
-                        <ChevronRight size={11} className="cursor-pointer hover:text-gray-700" />
-                      </div>
-                      <span className="text-[10px] text-gray-400">速率 (Mbps)</span>
-                    </div>
-                  </div>
-
-                  {/* SVG Chart */}
-                  <div
-                    className="relative w-full h-[155px] mt-0.5"
-                    onMouseMove={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setHoveredCard('c2');
-                      setHoverX(Math.max(30, Math.min(rect.width - 30, e.clientX - rect.left)));
-                    }}
-                    onMouseLeave={() => setHoveredCard(null)}
-                  >
-                    <span className="absolute top-0 left-0 text-[9px] text-gray-400 font-mono">
-                      流量 (MB)
-                    </span>
-
-                    <svg className="w-full h-full overflow-visible" viewBox="0 0 500 135" preserveAspectRatio="none">
-                      {/* Grid Lines for Y = 100, 80, 60, 40, 20, 0 */}
-                      {[
-                        { y: 15, lVal: '100', rVal: '15' },
-                        { y: 36, lVal: '80', rVal: '12' },
-                        { y: 57, lVal: '60', rVal: '9' },
-                        { y: 78, lVal: '40', rVal: '6' },
-                        { y: 99, lVal: '20', rVal: '3' },
-                        { y: 120, lVal: '0', rVal: '0' },
-                      ].map((row) => (
-                        <g key={row.y}>
-                          <line
-                            x1="25"
-                            y1={row.y}
-                            x2="475"
-                            y2={row.y}
-                            stroke={row.y === 120 ? '#D1D5DB' : '#E5E7EB'}
-                            strokeDasharray={row.y === 120 ? undefined : '3 3'}
-                          />
-                          <text x="22" y={row.y + 3} fill="#9CA3AF" fontSize="8" textAnchor="end" fontFamily="monospace">
-                            {row.lVal}
-                          </text>
-                          <text x="478" y={row.y + 3} fill="#9CA3AF" fontSize="8" textAnchor="start" fontFamily="monospace">
-                            {row.rVal}
-                          </text>
-                        </g>
-                      ))}
-
-                      {/* X Axis Time Ticks: 18:40, 18:50, 19:00, 19:10, 19:20, 19:30 */}
-                      {[
-                        { x: 50, label: '18:40' },
-                        { x: 130, label: '18:50' },
-                        { x: 215, label: '19:00' },
-                        { x: 300, label: '19:10' },
-                        { x: 385, label: '19:20' },
-                        { x: 460, label: '19:30' },
-                      ].map((t) => (
-                        <text key={t.label} x={t.x} y="132" fill="#9CA3AF" fontSize="8" textAnchor="middle" fontFamily="monospace">
-                          {t.label}
-                        </text>
-                      ))}
-
-                      {/* Curve 1: Green High Spike at 18:48 (~100MB), second peak at 18:55 (~70MB), third peak at 19:17 (~68MB), peak at 19:33 (~85MB) */}
-                      <path
-                        d="
-                          M 25 105
-                          L 40 98
-                          Q 50 102 60 70
-                          C 65 30, 72 16, 78 18
-                          C 85 20, 92 65, 100 68
-                          C 106 70, 115 50, 122 55
-                          C 130 62, 138 92, 145 92
-                          L 165 92
-                          Q 175 80 182 82
-                          Q 190 85 198 100
-                          L 230 100
-                          Q 240 92 248 95
-                          Q 256 98 265 104
-                          L 285 104
-                          Q 295 90 302 92
-                          Q 310 95 318 105
-                          L 330 105
-                          C 338 75, 345 50, 352 50
-                          C 358 50, 365 72, 372 70
-                          C 378 68, 385 60, 392 62
-                          C 400 66, 408 95, 415 95
-                          L 435 95
-                          Q 445 80 452 75
-                          C 460 68, 468 45, 475 35
-                        "
-                        fill="none"
-                        stroke="#52C41A"
-                        strokeWidth="1.5"
-                      />
-
-                      {/* Curve 2: Cyan undulating wave */}
-                      <path
-                        d="
-                          M 25 108
-                          Q 50 102 65 88
-                          Q 80 75 100 76
-                          Q 115 78 135 92
-                          Q 160 105 190 98
-                          Q 220 92 250 102
-                          Q 280 105 310 96
-                          Q 340 85 365 78
-                          Q 390 72 420 85
-                          Q 450 96 475 102
-                        "
-                        fill="none"
-                        stroke="#13C2C2"
-                        strokeWidth="1.2"
-                      />
-
-                      {/* Curve 3: Orange rate curve */}
-                      <path
-                        d="
-                          M 25 107
-                          Q 50 105 70 85
-                          Q 85 78 100 80
-                          Q 120 82 140 95
-                          Q 170 107 200 102
-                          Q 230 105 260 106
-                          Q 290 107 320 102
-                          Q 345 82 360 80
-                          Q 380 78 400 95
-                          Q 430 106 475 107
-                        "
-                        fill="none"
-                        stroke="#FA8C16"
-                        strokeWidth="1.2"
-                      />
-                    </svg>
-
-                    {hoveredCard === 'c2' && hoverX !== null && (
-                      <div
-                        className="absolute top-0 bottom-4 w-[1px] border-l border-dashed border-[#0084FF] pointer-events-none"
-                        style={{ left: `${hoverX}px` }}
-                      />
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Row 2: Node 2 (交换机2-基准 & 交换机2-周期) */}
-              <div className="grid grid-cols-2 gap-3.5">
-                {/* Row 2 Left: 交换机2-基准 */}
-                <div className="bg-white border border-gray-200 rounded-md p-3 shadow-2xs flex flex-col">
-                  {/* Card Header */}
-                  <div className="flex items-center justify-between pb-1.5 border-b border-gray-100">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-gray-800">
-                        {displayNodes[1] || '交换机2'}-基准
-                      </span>
-                      <div
-                        title={`基准时段: ${baseBadgeTime}`}
-                        className="w-4.5 h-4.5 rounded-full bg-[#E6F4FF] flex items-center justify-center cursor-pointer text-[#0084FF]"
-                      >
-                        <Clock size={11} />
-                      </div>
-                      <button
-                        type="button"
-                        aria-label="重置"
-                        className="text-gray-400 hover:text-[#0084FF] cursor-pointer"
-                      >
-                        <RotateCw size={11} />
-                      </button>
-                    </div>
-
-                    <div className="flex items-center gap-2.5 text-xs text-gray-500">
-                      <div className="flex items-center gap-1">
-                        <span className="text-[10px] text-gray-400">数据精度</span>
-                        <div className="relative">
-                          <select
-                            value={cardPrecisions.c3}
-                            onChange={(e) => setCardPrecision('c3', e.target.value)}
-                            className="appearance-none h-5 pl-1.5 pr-4 border border-gray-300 rounded bg-white text-gray-700 text-[10px] cursor-pointer"
-                          >
-                            <option value="分钟">分钟</option>
-                            <option value="5分钟">5分钟</option>
-                            <option value="小时">小时</option>
-                          </select>
-                          <ChevronDown
-                            size={9}
-                            className="absolute right-1 top-1.5 text-gray-400 pointer-events-none"
-                          />
-                        </div>
-                      </div>
-
-                      <label className="flex items-center gap-1 cursor-pointer text-[10px]">
-                        <input type="checkbox" className="w-3 h-3 rounded border-gray-300 text-[#0084FF]" />
-                        <span>刷新频率</span>
-                      </label>
-
-                      <Clock size={12} className="text-gray-400 hover:text-gray-600 cursor-pointer" />
-                    </div>
-                  </div>
-
-                  {/* Legends Bar */}
-                  <div className="py-1.5 flex items-center justify-between text-[10px] text-gray-600">
-                    <div className="flex items-center gap-3 truncate">
-                      <div className="flex items-center gap-1 cursor-pointer hover:text-gray-900 truncate">
-                        <span className="w-3.5 h-[2px] bg-[#52C41A] relative flex items-center justify-center shrink-0">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#52C41A]" />
-                        </span>
-                        <span className="truncate">应用(禅道公网)_Interface 1(DataCenter-SH)_流量</span>
-                      </div>
-                      <div className="flex items-center gap-1 cursor-pointer hover:text-gray-900 truncate">
-                        <span className="w-3.5 h-[2px] bg-[#13C2C2] relative flex items-center justify-center shrink-0">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#13C2C2]" />
-                        </span>
-                        <span className="truncate">应用(禅道公网...</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0 text-gray-400">
-                      <div className="flex items-center gap-0.5 font-mono text-[9px]">
-                        <ChevronLeft size={11} className="cursor-pointer hover:text-gray-700" />
-                        <span>1/4</span>
-                        <ChevronRight size={11} className="cursor-pointer hover:text-gray-700" />
-                      </div>
-                      <span className="text-[10px] text-gray-400">速率 (Kbps)</span>
-                    </div>
-                  </div>
-
-                  {/* SVG Chart */}
-                  <div
-                    className="relative w-full h-[155px] mt-0.5"
-                    onMouseMove={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setHoveredCard('c3');
-                      setHoverX(Math.max(30, Math.min(rect.width - 30, e.clientX - rect.left)));
-                    }}
-                    onMouseLeave={() => setHoveredCard(null)}
-                  >
-                    <span className="absolute top-0 left-0 text-[9px] text-gray-400 font-mono">
-                      流量 (KB)
-                    </span>
-
-                    <svg className="w-full h-full overflow-visible" viewBox="0 0 500 135" preserveAspectRatio="none">
-                      {/* Grid Lines for Y = 1000, 800, 600, 400, 200, 0 */}
-                      {[
-                        { y: 15, lVal: '1000', rVal: '150' },
-                        { y: 36, lVal: '800', rVal: '120' },
-                        { y: 57, lVal: '600', rVal: '90' },
-                        { y: 78, lVal: '400', rVal: '60' },
-                        { y: 99, lVal: '200', rVal: '30' },
-                        { y: 120, lVal: '0', rVal: '0' },
-                      ].map((row) => (
-                        <g key={row.y}>
-                          <line
-                            x1="25"
-                            y1={row.y}
-                            x2="475"
-                            y2={row.y}
-                            stroke={row.y === 120 ? '#D1D5DB' : '#E5E7EB'}
-                            strokeDasharray={row.y === 120 ? undefined : '3 3'}
-                          />
-                          <text x="22" y={row.y + 3} fill="#9CA3AF" fontSize="8" textAnchor="end" fontFamily="monospace">
-                            {row.lVal}
-                          </text>
-                          <text x="478" y={row.y + 3} fill="#9CA3AF" fontSize="8" textAnchor="start" fontFamily="monospace">
-                            {row.rVal}
-                          </text>
-                        </g>
-                      ))}
-
-                      {/* X Axis Time Ticks: 19:40, 19:50, 20:00, 20:10, 20:20, 20:30 */}
-                      {[
-                        { x: 50, label: '19:40' },
-                        { x: 130, label: '19:50' },
-                        { x: 215, label: '20:00' },
-                        { x: 300, label: '20:10' },
-                        { x: 385, label: '20:20' },
-                        { x: 460, label: '20:30' },
-                      ].map((t) => (
-                        <text key={t.label} x={t.x} y="132" fill="#9CA3AF" fontSize="8" textAnchor="middle" fontFamily="monospace">
-                          {t.label}
-                        </text>
-                      ))}
-
-                      {/* Curve 1: Green Peak at 20:05 (~400KB), sharp spike at 20:22 (~950KB) */}
-                      <path
-                        d="
-                          M 25 118
-                          L 220 118
-                          C 230 118, 238 80, 244 76
-                          C 250 82, 258 118, 270 118
-                          L 350 118
-                          C 358 118, 365 30, 370 20
-                          C 375 22, 382 118, 395 118
-                          L 475 118
-                        "
-                        fill="none"
-                        stroke="#52C41A"
-                        strokeWidth="1.5"
-                      />
-
-                      {/* Curve 2: Cyan peak matching shape */}
-                      <path
-                        d="
-                          M 25 118
-                          L 220 118
-                          C 230 118, 238 88, 244 82
-                          C 250 88, 258 118, 270 118
-                          L 350 118
-                          C 358 118, 365 38, 370 30
-                          C 375 32, 382 118, 395 118
-                          L 475 118
-                        "
-                        fill="none"
-                        stroke="#13C2C2"
-                        strokeWidth="1.2"
-                      />
-                    </svg>
-
-                    {hoveredCard === 'c3' && hoverX !== null && (
-                      <div
-                        className="absolute top-0 bottom-4 w-[1px] border-l border-dashed border-[#0084FF] pointer-events-none"
-                        style={{ left: `${hoverX}px` }}
-                      />
-                    )}
-                  </div>
-                </div>
-
-                {/* Row 2 Right: 交换机2-周期 */}
-                <div className="bg-white border border-gray-200 rounded-md p-3 shadow-2xs flex flex-col">
-                  {/* Card Header */}
-                  <div className="flex items-center justify-between pb-1.5 border-b border-gray-100">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-gray-800">
-                        {displayNodes[1] || '交换机2'}-周期
-                      </span>
-                      <div
-                        title={`对比时段: ${compareBadgeTime}`}
-                        className="w-4.5 h-4.5 rounded-full bg-[#E6F4FF] flex items-center justify-center cursor-pointer text-[#0084FF]"
-                      >
-                        <Clock size={11} />
-                      </div>
-                      <button
-                        type="button"
-                        aria-label="重置"
-                        className="text-gray-400 hover:text-[#0084FF] cursor-pointer"
-                      >
-                        <RotateCw size={11} />
-                      </button>
-                    </div>
-
-                    <div className="flex items-center gap-2.5 text-xs text-gray-500">
-                      <div className="flex items-center gap-1">
-                        <span className="text-[10px] text-gray-400">数据精度</span>
-                        <div className="relative">
-                          <select
-                            value={cardPrecisions.c4}
-                            onChange={(e) => setCardPrecision('c4', e.target.value)}
-                            className="appearance-none h-5 pl-1.5 pr-4 border border-gray-300 rounded bg-white text-gray-700 text-[10px] cursor-pointer"
-                          >
-                            <option value="分钟">分钟</option>
-                            <option value="5分钟">5分钟</option>
-                            <option value="小时">小时</option>
-                          </select>
-                          <ChevronDown
-                            size={9}
-                            className="absolute right-1 top-1.5 text-gray-400 pointer-events-none"
-                          />
-                        </div>
-                      </div>
-
-                      <label className="flex items-center gap-1 cursor-pointer text-[10px]">
-                        <input type="checkbox" className="w-3 h-3 rounded border-gray-300 text-[#0084FF]" />
-                        <span>刷新频率</span>
-                      </label>
-
-                      <Clock size={12} className="text-gray-400 hover:text-gray-600 cursor-pointer" />
-                      <Maximize2 size={12} className="text-gray-400 hover:text-gray-600 cursor-pointer" />
-                      <MoreHorizontal size={12} className="text-gray-400 hover:text-gray-600 cursor-pointer" />
-                    </div>
-                  </div>
-
-                  {/* Legends Bar */}
-                  <div className="py-1.5 flex items-center justify-between text-[10px] text-gray-600">
-                    <div className="flex items-center gap-3 truncate">
-                      <div className="flex items-center gap-1 cursor-pointer hover:text-gray-900 truncate">
-                        <span className="w-3.5 h-[2px] bg-[#52C41A] relative flex items-center justify-center shrink-0">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#52C41A]" />
-                        </span>
-                        <span className="truncate">应用(禅道公网)_Interface 1(DataCenter-SH)_流量</span>
-                      </div>
-                      <div className="flex items-center gap-1 cursor-pointer hover:text-gray-900 truncate">
-                        <span className="w-3.5 h-[2px] bg-[#13C2C2] relative flex items-center justify-center shrink-0">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#13C2C2]" />
-                        </span>
-                        <span className="truncate">应用(禅道公网...</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0 text-gray-400">
-                      <div className="flex items-center gap-0.5 font-mono text-[9px]">
-                        <ChevronLeft size={11} className="cursor-pointer hover:text-gray-700" />
-                        <span>1/4</span>
-                        <ChevronRight size={11} className="cursor-pointer hover:text-gray-700" />
-                      </div>
-                      <span className="text-[10px] text-gray-400">速率 (Kbps)</span>
-                    </div>
-                  </div>
-
-                  {/* SVG Chart */}
-                  <div
-                    className="relative w-full h-[155px] mt-0.5"
-                    onMouseMove={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setHoveredCard('c4');
-                      setHoverX(Math.max(30, Math.min(rect.width - 30, e.clientX - rect.left)));
-                    }}
-                    onMouseLeave={() => setHoveredCard(null)}
-                  >
-                    <span className="absolute top-0 left-0 text-[9px] text-gray-400 font-mono">
-                      流量 (MB)
-                    </span>
-
-                    <svg className="w-full h-full overflow-visible" viewBox="0 0 500 135" preserveAspectRatio="none">
-                      {/* Grid Lines for Y = 2, 1, 0 */}
-                      {[
-                        { y: 15, lVal: '2', rVal: '200' },
-                        { y: 41, lVal: '', rVal: '160' },
-                        { y: 68, lVal: '1', rVal: '120' },
-                        { y: 94, lVal: '', rVal: '80' },
-                        { y: 107, lVal: '', rVal: '40' },
-                        { y: 120, lVal: '0', rVal: '0' },
-                      ].map((row, idx) => (
-                        <g key={idx}>
-                          <line
-                            x1="25"
-                            y1={row.y}
-                            x2="475"
-                            y2={row.y}
-                            stroke={row.y === 120 ? '#D1D5DB' : '#E5E7EB'}
-                            strokeDasharray={row.y === 120 ? undefined : '3 3'}
-                          />
-                          {row.lVal !== '' && (
-                            <text x="22" y={row.y + 3} fill="#9CA3AF" fontSize="8" textAnchor="end" fontFamily="monospace">
-                              {row.lVal}
-                            </text>
-                          )}
-                          <text x="478" y={row.y + 3} fill="#9CA3AF" fontSize="8" textAnchor="start" fontFamily="monospace">
-                            {row.rVal}
-                          </text>
-                        </g>
-                      ))}
-
-                      {/* X Axis Time Ticks: 18:40, 18:50, 19:00, 19:10, 19:20, 19:30 */}
-                      {[
-                        { x: 50, label: '18:40' },
-                        { x: 130, label: '18:50' },
-                        { x: 215, label: '19:00' },
-                        { x: 300, label: '19:10' },
-                        { x: 385, label: '19:20' },
-                        { x: 460, label: '19:30' },
-                      ].map((t) => (
-                        <text key={t.label} x={t.x} y="132" fill="#9CA3AF" fontSize="8" textAnchor="middle" fontFamily="monospace">
-                          {t.label}
-                        </text>
-                      ))}
-
-                      {/* Curve 1: Green Small peak at 18:42, high peak at 19:20 (~1.5MB), second bump at 19:23 */}
-                      <path
-                        d="
-                          M 25 118
-                          L 35 118
-                          Q 42 110 46 112
-                          Q 52 115 58 118
-                          L 340 118
-                          C 350 118, 355 45, 360 40
-                          C 365 42, 370 85, 375 75
-                          C 380 80, 388 118, 395 118
-                          L 475 118
-                        "
-                        fill="none"
-                        stroke="#52C41A"
-                        strokeWidth="1.5"
-                      />
-
-                      {/* Curve 2: Yellow rate curve */}
-                      <path
-                        d="
-                          M 25 118
-                          L 35 118
-                          Q 42 112 46 114
-                          Q 52 116 58 118
-                          L 340 118
-                          C 350 118, 355 58, 360 52
-                          C 365 54, 370 92, 375 85
-                          C 380 90, 388 118, 395 118
-                          L 475 118
-                        "
-                        fill="none"
-                        stroke="#D48806"
-                        strokeWidth="1.2"
-                      />
-                    </svg>
-
-                    {hoveredCard === 'c4' && hoverX !== null && (
-                      <div
-                        className="absolute top-0 bottom-4 w-[1px] border-l border-dashed border-[#0084FF] pointer-events-none"
-                        style={{ left: `${hoverX}px` }}
-                      />
-                    )}
-                  </div>
-                </div>
-              </div>
+              {/* Bottom Card: 交换机1 */}
+              <UnifiedCompareCard
+                title={displayNodes[1] || '交换机1'}
+                badgeTime={baseBadgeTime || '2026-10-27 09:25 - 2026-10-27 10:25'}
+                objectLabel="应用(HTTPS_l7)_Interface 1(DataCenter-SH)"
+                variant="switch1"
+              />
             </div>
           ) : (
             /* ======================================================== */
-            /* MODE 2: SINGLE NODE PERIODIC COMPARE (图2单节点上下两图样式) */
+            /* MODE 2: SINGLE NODE PERIODIC COMPARE (单节点周期对比样式) */
             /* ======================================================== */
             <div className="space-y-3.5">
-              {/* 对比分析结论 (参考原有设计样式，加载在图表上方) */}
+              {/* 对比分析结论 (指标仅为速率对比，去除其他指标) */}
               <div className="w-full bg-[#F4F9FF] border border-[#BAE0FF] rounded-lg p-3 text-xs leading-relaxed text-gray-700 shadow-2xs flex items-start gap-2.5">
                 <div className="w-5 h-5 rounded-full bg-[#0084FF] text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
                   <Sparkles size={12} />
@@ -1333,419 +1200,23 @@ export const WorkbenchCompareView: React.FC<WorkbenchCompareProps> = ({
                   <div className="text-[11px] font-bold text-[#0084FF] mb-1 flex items-center gap-1.5">
                     <span>周期对比分析结论</span>
                   </div>
-                  <div className="text-gray-700 leading-normal">
-                    <span className="font-semibold text-gray-900">{nodeName || '交换机1'}</span>{' '}
-                    在对比时间（{compareTime}）内流量是{' '}
-                    <span className="font-mono font-medium text-gray-900">14.20 KB</span>，当前时间（{baseTime}）内流量是{' '}
-                    <span className="font-mono font-medium text-gray-900">19.63 KB</span>，相较对比时段{' '}
-                    <span className="font-semibold text-[#0084FF]">上升5.43 KB，变化率是 +38.24%</span>；响应时间-服务器在对比时间内是{' '}
-                    <span className="font-mono font-medium text-gray-900">28.10 ms</span>，当前时间是{' '}
-                    <span className="font-mono font-medium text-gray-900">25.84 ms</span>，相较对比时段{' '}
-                    <span className="font-semibold text-[#52C41A]">下降2.26 ms，变化率是 -8.04%</span>；网络时延在对比时间内是{' '}
-                    <span className="font-mono font-medium text-gray-900">115.30 ms</span>，当前时间是{' '}
-                    <span className="font-mono font-medium text-gray-900">121.10 ms</span>，相较对比时段{' '}
-                    <span className="font-semibold text-[#FF4D4F]">上升5.80 ms，变化率是 +5.03%</span>；建连失败率在对比时间内是{' '}
-                    <span className="font-mono font-medium text-gray-900">52.40 %</span>，当前时间是{' '}
-                    <span className="font-mono font-medium text-gray-900">48.13 %</span>，相较对比时段{' '}
-                    <span className="font-semibold text-[#52C41A]">下降4.27 %，变化率是 -8.15%</span>。
+                  <div className="text-gray-700 leading-relaxed">
+                    {renderNodeConclusion(nodeName || '交换机')}
                   </div>
                 </div>
               </div>
 
-              {/* Card 1: 交换机1-基准 */}
-              <div className="bg-white border border-gray-200 rounded-md p-3.5 shadow-2xs flex flex-col">
-                {/* Header Row */}
-                <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-xs font-bold text-gray-800">
-                      {nodeName === '交换机' ? '交换机1' : nodeName}-基准
-                    </span>
-                    <span className="font-mono text-[11px] text-[#0084FF] bg-[#E6F4FF] border border-[#BAE0FF] px-2 py-0.5 rounded">
-                      {baseBadgeTime}
-                    </span>
-                    <button
-                      type="button"
-                      className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-[#0084FF] cursor-pointer transition-colors"
-                    >
-                      <RotateCw size={11} />
-                      <span>重置</span>
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-3 text-xs text-gray-500">
-                    <div className="flex items-center gap-1">
-                      <span className="text-[11px] text-gray-500">数据精度</span>
-                      <div className="relative">
-                        <select
-                          value={cardPrecisions.c1}
-                          onChange={(e) => setCardPrecision('c1', e.target.value)}
-                          className="appearance-none h-5.5 pl-1.5 pr-5 border border-gray-300 rounded bg-white text-gray-700 text-[11px] cursor-pointer"
-                        >
-                          <option value="分钟">分钟</option>
-                          <option value="5分钟">5分钟</option>
-                          <option value="小时">小时</option>
-                        </select>
-                        <ChevronDown
-                          size={10}
-                          className="absolute right-1 top-1.5 text-gray-400 pointer-events-none"
-                        />
-                      </div>
-                    </div>
-
-                    <label className="flex items-center gap-1 cursor-pointer text-[11px]">
-                      <input type="checkbox" className="w-3 h-3 rounded border-gray-300 text-[#0084FF]" />
-                      <span>刷新频率</span>
-                    </label>
-
-                    <Clock size={13} className="text-gray-400 hover:text-gray-600 cursor-pointer" />
-                    <Maximize2 size={13} className="text-gray-400 hover:text-gray-600 cursor-pointer" />
-                    <MoreHorizontal size={13} className="text-gray-400 hover:text-gray-600 cursor-pointer" />
-                  </div>
-                </div>
-
-                {/* Legends Row matching Image 2 */}
-                <div className="py-2 px-1 flex items-center justify-between text-[11px] text-gray-600 border-b border-gray-50">
-                  <span className="text-[10px] text-gray-400 font-mono">
-                    流量 (KB)
-                  </span>
-
-                  <div className="flex items-center gap-3.5 flex-wrap">
-                    <div className="flex items-center gap-1.5 cursor-pointer hover:text-gray-900">
-                      <span className="w-3.5 h-[2px] bg-[#52C41A] relative flex items-center justify-center">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#52C41A]" />
-                      </span>
-                      <span>应用(禅道公网)_Interface 1(DataCenter-SH)_流量</span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 cursor-pointer hover:text-gray-900">
-                      <span className="w-3.5 h-[2px] bg-[#13C2C2] relative flex items-center justify-center">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#13C2C2]" />
-                      </span>
-                      <span>应用(禅道公网)_Interface 1(DataCenter-SH)_平均包率</span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 cursor-pointer hover:text-gray-900">
-                      <span className="w-3.5 h-[2px] bg-[#FA8C16] relative flex items-center justify-center">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#FA8C16]" />
-                      </span>
-                      <span>应用(禅道公网)_Interface 1(DataCenter-SH)_流量-服务器</span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 cursor-pointer hover:text-gray-900">
-                      <span className="w-3.5 h-[2px] bg-[#722ED1] relative flex items-center justify-center">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#722ED1]" />
-                      </span>
-                      <span>应用(禅道公网)_Interface 1(DataCenter-S...</span>
-                    </div>
-
-                    <div className="flex items-center gap-0.5 text-gray-400 font-mono text-[9px] ml-1">
-                      <ChevronLeft size={11} className="cursor-pointer hover:text-gray-700" />
-                      <span>1/2</span>
-                      <ChevronRight size={11} className="cursor-pointer hover:text-gray-700" />
-                    </div>
-                  </div>
-
-                  <span className="text-[10px] text-gray-400 font-mono">
-                    平均包率 (pps)
-                  </span>
-                </div>
-
-                {/* SVG Area */}
-                <div
-                  className="relative w-full h-[200px] mt-1"
-                  onMouseMove={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setHoveredCard('s1');
-                    setHoverX(Math.max(45, Math.min(rect.width - 45, e.clientX - rect.left)));
-                  }}
-                  onMouseLeave={() => setHoveredCard(null)}
-                >
-                  <svg className="w-full h-full overflow-visible" viewBox="0 0 1000 170" preserveAspectRatio="none">
-                    {/* Grid lines for 1000, 800, 600, 400, 200, 0 */}
-                    {[
-                      { y: 20, lVal: '1000', rVal: '20' },
-                      { y: 48, lVal: '800', rVal: '16' },
-                      { y: 76, lVal: '600', rVal: '12' },
-                      { y: 104, lVal: '400', rVal: '8' },
-                      { y: 132, lVal: '200', rVal: '4' },
-                      { y: 160, lVal: '0', rVal: '0' },
-                    ].map((row) => (
-                      <g key={row.y}>
-                        <line
-                          x1="45"
-                          y1={row.y}
-                          x2="955"
-                          y2={row.y}
-                          stroke={row.y === 160 ? '#D1D5DB' : '#E5E7EB'}
-                          strokeDasharray={row.y === 160 ? undefined : '3 3'}
-                        />
-                        <text x="40" y={row.y + 3} fill="#9CA3AF" fontSize="9" textAnchor="end" fontFamily="monospace">
-                          {row.lVal}
-                        </text>
-                        <text x="960" y={row.y + 3} fill="#9CA3AF" fontSize="9" textAnchor="start" fontFamily="monospace">
-                          {row.rVal}
-                        </text>
-                      </g>
-                    ))}
-
-                    {/* X Ticks: 19:40, 19:50, 20:00, 20:10, 20:20, 20:30 */}
-                    {[
-                      { x: 90, label: '19:40' },
-                      { x: 260, label: '19:50' },
-                      { x: 430, label: '20:00' },
-                      { x: 600, label: '20:10' },
-                      { x: 770, label: '20:20' },
-                      { x: 940, label: '20:30' },
-                    ].map((t) => (
-                      <text key={t.label} x={t.x} y="168" fill="#9CA3AF" fontSize="9.5" textAnchor="middle" fontFamily="monospace">
-                        {t.label}
-                      </text>
-                    ))}
-
-                    {/* Curve 1: Green Spike (Peak 1 at 20:05 ~400KB, Peak 2 at 20:22 ~950KB) */}
-                    <path
-                      d="
-                        M 45 155
-                        L 460 155
-                        C 485 155, 500 110, 515 104
-                        C 525 100, 540 155, 560 155
-                        L 770 155
-                        C 785 155, 800 35, 808 26
-                        C 815 32, 825 155, 840 155
-                        L 955 155
-                      "
-                      fill="none"
-                      stroke="#52C41A"
-                      strokeWidth="1.6"
-                    />
-
-                    {/* Curve 2: Cyan Spike (Peak 1 at 20:05 ~420KB, Peak 2 at 20:22 ~900KB) */}
-                    <path
-                      d="
-                        M 45 156
-                        L 460 156
-                        C 485 156, 500 106, 515 98
-                        C 525 96, 540 156, 560 156
-                        L 770 156
-                        C 785 156, 800 42, 808 34
-                        C 815 38, 825 156, 840 156
-                        L 955 156
-                      "
-                      fill="none"
-                      stroke="#13C2C2"
-                      strokeWidth="1.4"
-                    />
-
-                    {/* Curve 3: Orange baseline */}
-                    <path
-                      d="
-                        M 45 158
-                        L 955 158
-                      "
-                      fill="none"
-                      stroke="#FA8C16"
-                      strokeWidth="1"
-                    />
-                  </svg>
-
-                  {hoveredCard === 's1' && hoverX !== null && (
-                    <div
-                      className="absolute top-0 bottom-4 w-[1px] border-l border-dashed border-[#0084FF] pointer-events-none"
-                      style={{ left: `${hoverX}px` }}
-                    />
-                  )}
-                </div>
-              </div>
-
-              {/* Card 2: 交换机-周期 (matching Image 2) */}
-              <div className="bg-white border border-gray-200 rounded-md p-3.5 shadow-2xs flex flex-col">
-                {/* Header Row */}
-                <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-xs font-bold text-gray-800">
-                      {nodeName === '交换机1' ? '交换机-周期' : `${nodeName}-周期`}
-                    </span>
-                    <span className="font-mono text-[11px] text-[#0084FF] bg-[#E6F4FF] border border-[#BAE0FF] px-2 py-0.5 rounded">
-                      {baseBadgeTime}
-                    </span>
-                    <button
-                      type="button"
-                      className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-[#0084FF] cursor-pointer transition-colors"
-                    >
-                      <RotateCw size={11} />
-                      <span>重置</span>
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-3 text-xs text-gray-500">
-                    <div className="flex items-center gap-1">
-                      <span className="text-[11px] text-gray-500">数据精度</span>
-                      <div className="relative">
-                        <select
-                          value={cardPrecisions.c2}
-                          onChange={(e) => setCardPrecision('c2', e.target.value)}
-                          className="appearance-none h-5.5 pl-1.5 pr-5 border border-gray-300 rounded bg-white text-gray-700 text-[11px] cursor-pointer"
-                        >
-                          <option value="分钟">分钟</option>
-                          <option value="5分钟">5分钟</option>
-                          <option value="小时">小时</option>
-                        </select>
-                        <ChevronDown
-                          size={10}
-                          className="absolute right-1 top-1.5 text-gray-400 pointer-events-none"
-                        />
-                      </div>
-                    </div>
-
-                    <label className="flex items-center gap-1 cursor-pointer text-[11px]">
-                      <input type="checkbox" className="w-3 h-3 rounded border-gray-300 text-[#0084FF]" />
-                      <span>刷新频率</span>
-                    </label>
-
-                    <Clock size={13} className="text-gray-400 hover:text-gray-600 cursor-pointer" />
-                    <Maximize2 size={13} className="text-gray-400 hover:text-gray-600 cursor-pointer" />
-                    <MoreHorizontal size={13} className="text-gray-400 hover:text-gray-600 cursor-pointer" />
-                  </div>
-                </div>
-
-                {/* Legends Row matching Image 2 */}
-                <div className="py-2 px-1 flex items-center justify-between text-[11px] text-gray-600 border-b border-gray-50">
-                  <span className="text-[10px] text-gray-400 font-mono">
-                    流量 (MB)
-                  </span>
-
-                  <div className="flex items-center gap-3.5 flex-wrap">
-                    <div className="flex items-center gap-1.5 cursor-pointer hover:text-gray-900">
-                      <span className="w-3.5 h-[2px] bg-[#52C41A] relative flex items-center justify-center">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#52C41A]" />
-                      </span>
-                      <span>应用(禅道内网)_Interface 1(DataCenter-SH)_流量</span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 cursor-pointer hover:text-gray-900">
-                      <span className="w-3.5 h-[2px] bg-[#13C2C2] relative flex items-center justify-center">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#13C2C2]" />
-                      </span>
-                      <span>应用(禅道内网)_Interface 1(DataCenter-SH)_流量-客户端</span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 cursor-pointer hover:text-gray-900">
-                      <span className="w-3.5 h-[2px] bg-[#FA8C16] relative flex items-center justify-center">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#FA8C16]" />
-                      </span>
-                      <span>应用(禅道内网)_Interface 1(DataCenter-SH)_流量-服务器</span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 cursor-pointer hover:text-gray-900">
-                      <span className="w-3.5 h-[2px] bg-[#73D13D] relative flex items-center justify-center">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#73D13D]" />
-                      </span>
-                      <span>应用(禅道内网)_Interface 1(DataCenter-SH)_速率</span>
-                    </div>
-                  </div>
-
-                  <span className="text-[10px] text-gray-400 font-mono">
-                    速率 (Kbps)
-                  </span>
-                </div>
-
-                {/* SVG Area matching Image 2 */}
-                <div
-                  className="relative w-full h-[200px] mt-1"
-                  onMouseMove={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setHoveredCard('s2');
-                    setHoverX(Math.max(45, Math.min(rect.width - 45, e.clientX - rect.left)));
-                  }}
-                  onMouseLeave={() => setHoveredCard(null)}
-                >
-                  <svg className="w-full h-full overflow-visible" viewBox="0 0 1000 170" preserveAspectRatio="none">
-                    {/* Grid lines: 250, 200, 150, 100, 50, 0 / Left: 2, 1, 0 */}
-                    {[
-                      { y: 20, lVal: '2', rVal: '250' },
-                      { y: 48, lVal: '', rVal: '200' },
-                      { y: 76, lVal: '', rVal: '150' },
-                      { y: 90, lVal: '1', rVal: '' },
-                      { y: 104, lVal: '', rVal: '100' },
-                      { y: 132, lVal: '', rVal: '50' },
-                      { y: 160, lVal: '0', rVal: '0' },
-                    ].map((row, idx) => (
-                      <g key={idx}>
-                        <line
-                          x1="45"
-                          y1={row.y}
-                          x2="955"
-                          y2={row.y}
-                          stroke={row.y === 160 ? '#D1D5DB' : '#E5E7EB'}
-                          strokeDasharray={row.y === 160 ? undefined : '3 3'}
-                        />
-                        {row.lVal !== '' && (
-                          <text x="40" y={row.y + 3} fill="#9CA3AF" fontSize="9" textAnchor="end" fontFamily="monospace">
-                            {row.lVal}
-                          </text>
-                        )}
-                        {row.rVal !== '' && (
-                          <text x="960" y={row.y + 3} fill="#9CA3AF" fontSize="9" textAnchor="start" fontFamily="monospace">
-                            {row.rVal}
-                          </text>
-                        )}
-                      </g>
-                    ))}
-
-                    {/* X Ticks: 19:40, 19:50, 20:00, 20:10, 20:20, 20:30 */}
-                    {[
-                      { x: 90, label: '19:40' },
-                      { x: 260, label: '19:50' },
-                      { x: 430, label: '20:00' },
-                      { x: 600, label: '20:10' },
-                      { x: 770, label: '20:20' },
-                      { x: 940, label: '20:30' },
-                    ].map((t) => (
-                      <text key={t.label} x={t.x} y="168" fill="#9CA3AF" fontSize="9.5" textAnchor="middle" fontFamily="monospace">
-                        {t.label}
-                      </text>
-                    ))}
-
-                    {/* Curve 1: Olive Green Curve at ~1.8 MB (Y ~ 33-44) hovering across the entire chart */}
-                    <path
-                      d="
-                        M 45 36
-                        C 90 33, 110 30, 140 31
-                        C 180 32, 220 38, 260 36
-                        C 300 34, 330 42, 350 41
-                        C 380 40, 410 33, 430 34
-                        C 460 35, 490 45, 510 44
-                        C 540 43, 570 35, 600 36
-                        C 640 37, 670 33, 690 34
-                        C 730 35, 755 41, 770 40
-                        C 800 39, 830 44, 850 43
-                        C 890 42, 920 35, 955 36
-                      "
-                      fill="none"
-                      stroke="#73D13D"
-                      strokeWidth="1.8"
-                    />
-
-                    {/* Curve 2: Cyan line flat at baseline 0 */}
-                    <path
-                      d="
-                        M 45 158
-                        L 955 158
-                      "
-                      fill="none"
-                      stroke="#13C2C2"
-                      strokeWidth="1.2"
-                    />
-                  </svg>
-
-                  {hoveredCard === 's2' && hoverX !== null && (
-                    <div
-                      className="absolute top-0 bottom-4 w-[1px] border-l border-dashed border-[#0084FF] pointer-events-none"
-                      style={{ left: `${hoverX}px` }}
-                    />
-                  )}
-                </div>
-              </div>
+              {/* Single Node Card */}
+              <UnifiedCompareCard
+                title={nodeName || '交换机'}
+                badgeTime={baseBadgeTime || '2026-10-27 09:25 - 2026-10-27 10:25'}
+                objectLabel={
+                  nodeName === '交换机1'
+                    ? '应用(HTTPS_l7)_Interface 1(DataCenter-SH)'
+                    : '应用(禅道公网)_Interface 1(DataCenter-SH)'
+                }
+                variant={nodeName === '交换机1' ? 'switch1' : 'switch'}
+              />
             </div>
           )}
         </div>

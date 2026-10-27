@@ -33,8 +33,9 @@ export default function App() {
     baseTime: '2026-10-25 19:39 ~ 2026-10-25 20:39',
     comparePeriodType: 'yesterday',
     compareTime: '2026-10-24 19:39 ~ 2026-10-24 20:39',
-    selectedMetrics: ['流量', '响应时间-服务器', '网络时延', '建连失败率'],
-    selectedNodes: ['交换机1'],
+    selectedMetrics: ['流量'],
+    selectedMetric: '流量',
+    selectedNodes: ['交换机', '交换机1'],
   });
 
   // Drill-down parameters for SmartTrace (智溯)
@@ -57,7 +58,7 @@ export default function App() {
       setCompareInitialNodes([nodeName]);
       setCompareModalTitle('周期对比配置');
     } else {
-      setCompareInitialNodes(['交换机1', '交换机2']);
+      setCompareInitialNodes(['交换机', '交换机1']);
       setCompareModalTitle('一键对比配置');
     }
     setIsCompareModalOpen(true);
@@ -200,6 +201,7 @@ export default function App() {
         onClose={() => setIsCompareModalOpen(false)}
         onConfirm={handleConfirmCompare}
         initialNodes={compareInitialNodes}
+        initialMetric={compareConfig.selectedMetric || compareConfig.selectedMetrics[0] || '流量'}
         title={compareModalTitle}
       />
 
